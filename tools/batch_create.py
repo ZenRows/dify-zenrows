@@ -73,7 +73,7 @@ class BatchCreateTool(Tool):
             )
             job_id = submitted.get("job_id")
             if not job_id:
-                raise ToolInvokeError("Zenrows accepted the job but returned no job_id.")
+                raise ToolInvokeError("ZenRows accepted the job but returned no job_id.")
 
             result = run_summary(submitted)
             result["accepted_tasks"] = submitted.get("accepted_tasks")

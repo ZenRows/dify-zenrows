@@ -5,9 +5,9 @@ identity:
     en_US: Batch Create
 description:
   human:
-    en_US: Submit many URLs to Zenrows as a single batch job. Returns a job ID you can check later, or waits for the job to finish if it is small.
+    en_US: Submit many URLs to ZenRows as a single batch job. Returns a job ID you can check later, or waits for the job to finish if it is small.
   llm: |
-    Submits a list of URLs to the Zenrows Batch API as one job, for scraping many pages at
+    Submits a list of URLs to the ZenRows Batch API as one job, for scraping many pages at
     once rather than calling Fetch repeatedly. Accepts 1 to 1000 URLs.
     Set wait to true only for small batches: it blocks until the job finishes, and gives up
     after about 100 seconds because a tool call cannot run longer than that. When it gives
