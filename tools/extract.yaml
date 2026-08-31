@@ -1,0 +1,118 @@
+identity:
+  name: extract
+  author: "zenrows"
+  label:
+    en_US: Extract
+description:
+  human:
+    en_US: Extract structured data from a web page as JSON — automatically, or with your own CSS selectors, or using built-in filters for things like emails and links.
+  llm: |
+    Extracts structured JSON from a web page, rather than returning the page content.
+    Choose a method:
+      - "auto" (default): site-tailored extraction. Best quality where supported. If the
+        domain is not enabled for it, this automatically falls back to autoparse.
+      - "autoparse": general-purpose structured extraction. Works on any domain.
+      - "css": extract named fields using your own CSS selectors. Requires css_selectors.
+      - "outputs": pull out specific element types (emails, links, images, tables, and so
+        on). Requires the outputs parameter.
+    Use the Fetch tool instead when you want the page content itself rather than
+    structured fields.
+parameters:
+  - name: url
+    type: string
+    required: true
+    label:
+      en_US: URL
+    human_description:
+      en_US: The full URL of the page to extract from, including https://.
+    llm_description: The absolute URL of the page to extract data from. Must start with http:// or https://.
+    form: llm
+  - name: method
+    type: select
+    required: false
+    default: auto
+    label:
+      en_US: Extraction method
+    human_description:
+      en_US: How to extract. Auto is site-tailored and falls back to Autoparse when a domain is not supported.
+    llm_description: >
+      Which extraction method to use. "auto" for site-tailored extraction with automatic
+      fallback, "autoparse" for general-purpose extraction on any domain, "css" when you
+      have specific selectors, "outputs" to pull out particular element types.
+    options:
+      - value: auto
+        label:
+          en_US: Auto (recommended)
+      - value: autoparse
+        label:
+          en_US: Autoparse (any site)
+      - value: css
+        label:
+          en_US: CSS selectors
+      - value: outputs
+        label:
+          en_US: Output filters
+    form: llm
+  - name: css_selectors
+    type: string
+    required: false
+    label:
+      en_US: CSS selectors
+    human_description:
+      en_US: 'JSON map of field name to CSS selector, e.g. {"title":"h1","price":".price"}. Only used with the CSS selectors method.'
+    llm_description: >
+      A JSON object mapping output field names to CSS selectors, for example
+      {"title":"h1","price":".price"}. Required when method is "css", ignored otherwise.
+    form: llm
+  - name: outputs
+    type: string
+    required: false
+    label:
+      en_US: Output filters
+    human_description:
+      en_US: 'Comma-separated list, e.g. emails,links. Available: emails, phone_numbers, headings, images, audios, videos, links, menus, hashtags, metadata, tables, favicon. Use * for all. Only used with the Output filters method.'
+    llm_description: >
+      Comma-separated element types to extract. Valid values: emails, phone_numbers,
+      headings, images, audios, videos, links, menus, hashtags, metadata, tables, favicon.
+      Use "*" for all of them. Required when method is "outputs", ignored otherwise.
+    form: llm
+  - name: js_render
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Render JavaScript
+    human_description:
+      en_US: Load the page in a real browser first, so JavaScript-generated content is included. Slower and costs more credits.
+    llm_description: Set true when the data is rendered by JavaScript and would be missing from the raw HTML.
+    form: llm
+  - name: premium_proxy
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Premium proxy
+    human_description:
+      en_US: Route through residential IPs. Use for sites with strong anti-bot protection. Costs more credits.
+    llm_description: Set true when a normal request is blocked by anti-bot protection. Costs more credits, so leave false unless needed.
+    form: llm
+output_schema:
+  properties:
+    data:
+      type: object
+      description: The extracted structured data.
+    method_used:
+      type: string
+      description: The extraction method that produced the result — may differ from the one requested if auto fell back.
+    fell_back_to_autoparse:
+      type: boolean
+      description: True when auto extraction was unavailable for this domain and autoparse was used instead.
+    empty:
+      type: boolean
+      description: True when the extraction succeeded but found no data.
+    url:
+      type: string
+      description: The URL that was extracted from.
+extra:
+  python:
+    source: tools/extract.py
