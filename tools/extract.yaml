@@ -11,7 +11,11 @@ description:
     Choose a method:
       - "auto" (default): site-tailored extraction. Best quality where supported. If the
         domain is not enabled for it, this automatically falls back to autoparse.
-      - "autoparse": general-purpose structured extraction. Works on any domain.
+        Noticeably slower than autoparse — on one product page it took 18s against
+        autoparse's 2s on the same URL. Prefer autoparse when latency matters more
+        than field coverage.
+      - "autoparse": general-purpose structured extraction. Works on any domain, and is
+        the fastest method. Returns whatever the page exposes, which may be nothing.
       - "css": extract named fields using your own CSS selectors. Requires css_selectors.
       - "outputs": pull out specific element types (emails, links, images, tables, and so
         on). Requires the outputs parameter.
@@ -34,11 +38,12 @@ parameters:
     label:
       en_US: Extraction method
     human_description:
-      en_US: How to extract. Auto is site-tailored and falls back to Autoparse when a domain is not supported.
+      en_US: How to extract. Auto is site-tailored and falls back to Autoparse when a domain is not supported, but is several times slower than Autoparse.
     llm_description: >
       Which extraction method to use. "auto" for site-tailored extraction with automatic
-      fallback, "autoparse" for general-purpose extraction on any domain, "css" when you
-      have specific selectors, "outputs" to pull out particular element types.
+      fallback (highest field coverage, but several times slower), "autoparse" for fast
+      general-purpose extraction on any domain, "css" when you have specific selectors,
+      "outputs" to pull out particular element types.
     options:
       - value: auto
         label:
