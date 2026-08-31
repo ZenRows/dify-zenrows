@@ -20,6 +20,10 @@ plugin_tag:
   - tools
   - utilities
   - productivity
+network:
+  domains:
+    - api.zenrows.com
+    - async.api.zenrows.com
 resource:
   memory: 268435456
   permission: {}

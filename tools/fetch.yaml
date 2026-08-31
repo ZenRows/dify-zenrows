@@ -1,0 +1,112 @@
+identity:
+  name: fetch
+  author: "zenrows"
+  label:
+    en_US: Fetch
+description:
+  human:
+    en_US: Fetch any web page through Zenrows, bypassing anti-bot protection, JavaScript rendering and geo-restrictions. Returns the page content.
+  llm: |
+    Retrieves the content of a single web page through the Zenrows API. Use this whenever
+    you need the actual content of a URL and a plain HTTP request would be blocked, return
+    a challenge page, or miss JavaScript-rendered content. Returns HTML by default; set
+    response_type to markdown or plaintext when the content is going to a language model.
+    Enable js_render for pages whose content is drawn by JavaScript, and premium_proxy for
+    sites with strong anti-bot protection.
+parameters:
+  - name: url
+    type: string
+    required: true
+    label:
+      en_US: URL
+    human_description:
+      en_US: The full URL of the page to fetch, including https://.
+    llm_description: The absolute URL of the page to retrieve. Must start with http:// or https://.
+    form: llm
+  - name: response_type
+    type: select
+    required: false
+    label:
+      en_US: Response format
+    human_description:
+      en_US: Format of the returned content. HTML is the raw page; markdown and plaintext are easier for a model to read.
+    llm_description: >
+      Output format. Use "markdown" or "plaintext" when passing the result to a language
+      model, "html" when you need the raw markup, "pdf" to render the page as a PDF.
+    default: markdown
+    options:
+      - value: html
+        label:
+          en_US: HTML (raw)
+      - value: markdown
+        label:
+          en_US: Markdown
+      - value: plaintext
+        label:
+          en_US: Plain text
+      - value: pdf
+        label:
+          en_US: PDF
+    form: llm
+  - name: js_render
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Render JavaScript
+    human_description:
+      en_US: Load the page in a real browser so JavaScript-generated content is included. Slower and costs more credits.
+    llm_description: Set true when the page content is rendered by JavaScript and would be missing from the raw HTML.
+    form: llm
+  - name: premium_proxy
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Premium proxy
+    human_description:
+      en_US: Route the request through residential IPs. Use for sites with strong anti-bot protection. Costs more credits.
+    llm_description: Set true when a normal request is blocked by anti-bot protection. Costs more credits, so leave false unless needed.
+    form: llm
+  - name: proxy_country
+    type: string
+    required: false
+    label:
+      en_US: Proxy country
+    human_description:
+      en_US: Two-letter country code to geolocate the request from, for example us or de. Requires premium proxy.
+    llm_description: Optional two-letter ISO country code (e.g. "us", "gb", "de") to fetch the page from that country. Only applies when premium_proxy is enabled.
+    form: llm
+  - name: wait_for
+    type: string
+    required: false
+    label:
+      en_US: Wait for selector
+    human_description:
+      en_US: CSS selector to wait for before capturing the page. Requires JavaScript rendering.
+    llm_description: Optional CSS selector the page must contain before the content is captured. Only applies when js_render is enabled.
+    form: llm
+  - name: screenshot
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Screenshot
+    human_description:
+      en_US: Return a screenshot of the page instead of its content. Requires JavaScript rendering.
+    llm_description: Set true to capture an image of the page rather than its text content. Only applies when js_render is enabled.
+    form: llm
+output_schema:
+  properties:
+    content:
+      type: string
+      description: The fetched page content, in the requested response format.
+    url:
+      type: string
+      description: The URL that was fetched.
+    status_code:
+      type: number
+      description: HTTP status returned by the target site.
+extra:
+  python:
+    source: tools/fetch.py
