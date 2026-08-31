@@ -17,6 +17,7 @@ Attribution rides in the User-Agent, matching the CLI's `zenrows-cli/<ver>`.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import requests
@@ -210,4 +211,24 @@ def fetch_result_body(result_url: str, *, max_bytes: int = DEFAULT_MAX_BYTES_PER
         # A body that will not download should not fail the whole batch —
         # the row still reports its status and URL.
         return None
+
+
+# Bodies are independent unauthenticated GETs against object storage, so they
+# parallelise cleanly. Sequentially, 25 bodies measured ~13.5s; at the 200
+# ceiling that alone would exceed Dify's 120s invocation limit before any API
+# calls. Eight workers keeps the wall time roughly flat as the count grows.
+RESULT_FETCH_WORKERS = 8
+
+
+def fetch_result_bodies(
+    result_urls: list[str | None], *, max_bytes: int = DEFAULT_MAX_BYTES_PER_BODY
+) -> list[str | None]:
+    """Fetch many result bodies in parallel, preserving input order."""
+    if not result_urls:
+        return []
+    workers = min(RESULT_FETCH_WORKERS, len(result_urls))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(
+            pool.map(lambda u: fetch_result_body(u or "", max_bytes=max_bytes), result_urls)
+        )
 

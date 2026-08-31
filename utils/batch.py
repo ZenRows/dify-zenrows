@@ -49,7 +49,12 @@ def run_summary(job: dict[str, Any]) -> dict[str, Any]:
     if stats.get("failure_reasons"):
         summary["failure_reasons"] = stats["failure_reasons"]
     if stats.get("spend"):
-        summary["spend"] = stats["spend"]
+        # The API returns cost as a raw float, e.g. 0.030000000000000006.
+        # Round it before a user ever sees it.
+        spend = dict(stats["spend"])
+        if isinstance(spend.get("cost"), (int, float)):
+            spend["cost"] = round(spend["cost"], 6)
+        summary["spend"] = spend
     return summary
 
 

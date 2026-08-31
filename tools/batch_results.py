@@ -9,7 +9,7 @@ from tools.client import (
     DEFAULT_MAX_RESULTS,
     MAX_RESULTS_CEILING,
     batch,
-    fetch_result_body,
+    fetch_result_bodies,
 )
 from utils.errors import (
     PASSTHROUGH_ERRORS,
@@ -91,18 +91,25 @@ class BatchResultsTool(Tool):
                 }
                 if row.get("error"):
                     entry["error"] = row["error"]
-
-                if include_content and row.get("status") == "successful":
-                    body = fetch_result_body(row.get("result_url") or "")
-                    if body is None:
-                        # Either too large for one tool response, or the
-                        # presigned URL would not download. Say which is not
-                        # worth the extra call — flag it and keep going.
-                        entry["content"] = None
-                        entry["content_unavailable"] = True
-                    else:
-                        entry["content"] = body
                 results.append(entry)
+
+            if include_content:
+                # Fetch every body in one parallel pass rather than one per
+                # row: sequentially this dominated the tool's runtime.
+                fetchable = [
+                    i for i, row in enumerate(rows) if row.get("status") == "successful"
+                ]
+                bodies = fetch_result_bodies(
+                    [rows[i].get("result_url") for i in fetchable]
+                )
+                for i, body in zip(fetchable, bodies):
+                    if body is None:
+                        # Either over the per-body size cap or the presigned
+                        # URL would not download. Flag it and keep going.
+                        results[i]["content"] = None
+                        results[i]["content_unavailable"] = True
+                    else:
+                        results[i]["content"] = body
 
             payload = {
                 "results": results,
