@@ -1,0 +1,100 @@
+identity:
+  name: batch_create
+  author: "zenrows"
+  label:
+    en_US: Batch Create
+description:
+  human:
+    en_US: Submit many URLs to ZenRows as a single batch job. Returns a job ID you can check later, or waits for the job to finish if it is small.
+  llm: |
+    Submits a list of URLs to the ZenRows Batch API as one job, for scraping many pages at
+    once rather than calling Fetch repeatedly. Accepts 1 to 1000 URLs.
+    Set wait to true only for small batches: it blocks until the job finishes, and gives up
+    after about 100 seconds because a tool call cannot run longer than that. When it gives
+    up, or when wait is false, use the Batch Status tool with the returned job_id to check
+    progress, then Batch Results to collect the output.
+parameters:
+  - name: urls
+    type: string
+    required: true
+    label:
+      en_US: URLs
+    human_description:
+      en_US: The URLs to scrape, one per line or comma-separated. Between 1 and 1000.
+    llm_description: >
+      The URLs to scrape, separated by newlines or commas. Each must start with http:// or
+      https://. Between 1 and 1000 URLs.
+    form: llm
+  - name: wait
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Wait for completion
+    human_description:
+      en_US: Block until the job finishes, up to about 100 seconds. Leave off for large batches and check status separately.
+    llm_description: >
+      If true, wait for the job to finish before returning (up to about 100 seconds). If
+      false, return the job_id immediately. Use false for batches of more than a few dozen
+      URLs.
+    form: llm
+  - name: response_type
+    type: select
+    required: false
+    default: markdown
+    label:
+      en_US: Response format
+    human_description:
+      en_US: Format each page is stored in. Markdown and plain text are easier for a model to read.
+    llm_description: The output format for every page in the batch.
+    options:
+      - value: html
+        label:
+          en_US: HTML (raw)
+      - value: markdown
+        label:
+          en_US: Markdown
+      - value: plaintext
+        label:
+          en_US: Plain text
+    form: llm
+  - name: js_render
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Render JavaScript
+    human_description:
+      en_US: Load each page in a real browser. Slower and costs more credits, applied to every URL in the batch.
+    llm_description: Set true when the pages need JavaScript to render their content. Applies to every URL in the batch and costs more credits.
+    form: llm
+  - name: premium_proxy
+    type: boolean
+    required: false
+    default: false
+    label:
+      en_US: Premium proxy
+    human_description:
+      en_US: Route through residential IPs. Applied to every URL in the batch and costs more credits.
+    llm_description: Set true when the target sites have strong anti-bot protection. Applies to every URL and costs more credits.
+    form: llm
+output_schema:
+  properties:
+    job_id:
+      type: string
+      description: Identifier for the submitted job — pass this to Batch Status and Batch Results.
+    run_id:
+      type: string
+      description: Identifier for this run of the job.
+    status:
+      type: string
+      description: Run status — running, pending, completed, stopped or failed.
+    finished:
+      type: boolean
+      description: True when the run has reached a terminal state.
+    accepted_tasks:
+      type: number
+      description: How many URLs the API accepted.
+extra:
+  python:
+    source: tools/batch_create.py

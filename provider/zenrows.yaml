@@ -2,9 +2,9 @@ identity:
   author: "zenrows"
   name: "zenrows"
   label:
-    en_US: "Zenrows"
+    en_US: "ZenRows"
   description:
-    en_US: "Fetch and extract data from any website with Zenrows"
+    en_US: "Fetch and extract data from any website with ZenRows"
   icon: "icon.svg"
   tags:
     - utilities
@@ -15,16 +15,19 @@ credentials_for_provider:
     type: "secret-input"
     required: true
     label:
-      en_US: "Zenrows API Key"
+      en_US: "ZenRows API Key"
     placeholder:
-      en_US: "Your Zenrows API key"
+      en_US: "Your ZenRows API key"
     help:
-      en_US: "Find your API key in the Zenrows dashboard. Validating it does not consume credits."
+      en_US: "Find your API key in the ZenRows dashboard. Validating it does not consume credits."
     url: "https://app.zenrows.com/"
 
 tools:
   - tools/fetch.yaml
   - tools/extract.yaml
+  - tools/batch_create.yaml
+  - tools/batch_status.yaml
+  - tools/batch_results.yaml
 
 extra:
   python:

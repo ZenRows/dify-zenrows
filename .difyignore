@@ -175,3 +175,7 @@ Thumbs.db
 # Dify plugin packages
 #  To prevent packaging repetitively
 *.difypkg
+
+# Scaffold / dev-only files, not part of the published plugin
+.env.example
+GUIDE.md

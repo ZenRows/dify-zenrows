@@ -1,0 +1,56 @@
+identity:
+  name: batch_status
+  author: "zenrows"
+  label:
+    en_US: Batch Status
+description:
+  human:
+    en_US: Check how a batch job is progressing — how many pages are done, how many failed, and what it has cost so far.
+  llm: |
+    Reports the progress of a batch job submitted with Batch Create. Returns the run status
+    (running, pending, completed, stopped or failed), counts of total, completed, successful
+    and failed tasks, a breakdown of failure reasons when there are any, and the credits
+    spent. Call this after Batch Create when wait was false or timed out. Once finished is
+    true, use Batch Results to collect the scraped content.
+parameters:
+  - name: job_id
+    type: string
+    required: true
+    label:
+      en_US: Job ID
+    human_description:
+      en_US: The job ID returned by Batch Create.
+    llm_description: The job_id returned by the Batch Create tool.
+    form: llm
+output_schema:
+  properties:
+    job_id:
+      type: string
+      description: The job that was checked.
+    status:
+      type: string
+      description: Run status — running, pending, completed, stopped or failed.
+    finished:
+      type: boolean
+      description: True when the run has reached a terminal state and results can be collected.
+    total:
+      type: number
+      description: Total tasks in the run.
+    completed:
+      type: number
+      description: Tasks finished so far, successful and failed combined.
+    successful:
+      type: number
+      description: Tasks that succeeded.
+    failed:
+      type: number
+      description: Tasks that failed.
+    failure_reasons:
+      type: object
+      description: Counts of terminal failures by reason, when there are any.
+    spend:
+      type: object
+      description: Credits and cost consumed by this run.
+extra:
+  python:
+    source: tools/batch_status.py
