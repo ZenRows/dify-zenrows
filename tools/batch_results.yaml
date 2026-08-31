@@ -1,0 +1,80 @@
+identity:
+  name: batch_results
+  author: "zenrows"
+  label:
+    en_US: Batch Results
+description:
+  human:
+    en_US: Collect the scraped content from a finished batch job.
+  llm: |
+    Retrieves the results of a batch job submitted with Batch Create, including the scraped
+    content of each page. Call this once Batch Status reports finished. By default it returns
+    the first 25 results with their content; raise max_results to get more, bearing in mind
+    that a tool call has to complete within about two minutes and every page body counts
+    toward the response size. Set include_content to false to get just the per-URL statuses
+    without downloading any page bodies, which is much faster for large jobs.
+parameters:
+  - name: job_id
+    type: string
+    required: true
+    label:
+      en_US: Job ID
+    human_description:
+      en_US: The job ID returned by Batch Create.
+    llm_description: The job_id returned by the Batch Create tool.
+    form: llm
+  - name: max_results
+    type: number
+    required: false
+    default: 25
+    min: 1
+    max: 200
+    label:
+      en_US: Max results
+    human_description:
+      en_US: How many results to return. Higher values take longer and produce a larger response.
+    llm_description: Maximum number of results to return, between 1 and 200. Defaults to 25.
+    form: llm
+  - name: include_content
+    type: boolean
+    required: false
+    default: true
+    label:
+      en_US: Include page content
+    human_description:
+      en_US: Download the scraped content of each page. Turn off to get only statuses and URLs, which is much faster.
+    llm_description: >
+      If true (default) each result includes the scraped page content. If false, results
+      carry only url, status and task_id — much faster for large jobs or when you only need
+      to know what succeeded.
+    form: llm
+  - name: status_filter
+    type: select
+    required: false
+    label:
+      en_US: Only include
+    human_description:
+      en_US: Limit results to tasks with a particular status. Leave unset to include all.
+    llm_description: Optionally return only tasks with this status. Omit to include every task.
+    options:
+      - value: successful
+        label:
+          en_US: Successful only
+      - value: failed
+        label:
+          en_US: Failed only
+    form: llm
+output_schema:
+  properties:
+    results:
+      type: array
+      description: The batch results, each with url, status and optionally the page content.
+    returned:
+      type: number
+      description: How many results are in this response.
+    truncated:
+      type: boolean
+      description: True when the job has more results than were returned.
+extra:
+  python:
+    source: tools/batch_results.py

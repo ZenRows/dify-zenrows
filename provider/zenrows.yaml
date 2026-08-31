@@ -25,6 +25,9 @@ credentials_for_provider:
 tools:
   - tools/fetch.yaml
   - tools/extract.yaml
+  - tools/batch_create.yaml
+  - tools/batch_status.yaml
+  - tools/batch_results.yaml
 
 extra:
   python:

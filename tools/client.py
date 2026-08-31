@@ -171,3 +171,43 @@ def verify_api_key(api_key: str) -> dict[str, Any]:
         raise ToolInvokeError(
             "Zenrows returned an unexpected response while verifying the API key."
         ) from exc
+
+# ----- Batch result bodies ---------------------------------------------
+
+# The SDK's bulk-download defaults are 100_000 files at 50 MiB each, sized for
+# a CLI streaming to disk. A Dify tool returns into a workflow variable and has
+# to finish inside the 120s invocation ceiling, so it needs its own limits.
+DEFAULT_MAX_RESULTS = 25
+MAX_RESULTS_CEILING = 200
+DEFAULT_MAX_BYTES_PER_BODY = 1024 * 1024  # 1 MiB
+
+
+def fetch_result_body(result_url: str, *, max_bytes: int = DEFAULT_MAX_BYTES_PER_BODY) -> str | None:
+    """GET a task's presigned `result_url` and return the body as text.
+
+    Straight to object storage: no auth header and no API round-trip. The
+    Batch API also exposes a `/tasks/{id}/content` endpoint, but that exists
+    for the web UI and proxies the body back through the API — the SDK
+    explicitly warns against using it, so do not switch to it here.
+
+    Returns None when the body is missing or larger than `max_bytes`, so one
+    oversized page cannot blow the whole tool response.
+    """
+    if not result_url:
+        return None
+    try:
+        response = requests.get(result_url, timeout=30, stream=True)
+        response.raise_for_status()
+        chunks: list[bytes] = []
+        total = 0
+        for chunk in response.iter_content(chunk_size=8192):
+            total += len(chunk)
+            if total > max_bytes:
+                return None
+            chunks.append(chunk)
+        return b"".join(chunks).decode("utf-8", errors="replace")
+    except requests.RequestException:
+        # A body that will not download should not fail the whole batch —
+        # the row still reports its status and URL.
+        return None
+
