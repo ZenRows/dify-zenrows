@@ -1,0 +1,41 @@
+version: 0.0.1
+type: plugin
+author: zenrows
+name: zenrows
+repo: https://github.com/ZenRows/dify-zenrows
+contact: support@zenrows.com
+label:
+  en_US: Zenrows
+  ja_JP: Zenrows
+  zh_Hans: Zenrows
+  pt_BR: Zenrows
+description:
+  en_US: Fetch and extract data from any website with Zenrows
+  ja_JP: Fetch and extract data from any website with Zenrows
+  zh_Hans: Fetch and extract data from any website with Zenrows
+  pt_BR: Fetch and extract data from any website with Zenrows
+icon: icon.svg
+icon_dark: icon-dark.svg
+plugin_tag:
+  - tools
+  - utilities
+  - productivity
+resource:
+  memory: 268435456
+  permission: {}
+plugins:
+  tools:
+    - provider/zenrows.yaml
+meta:
+  version: 0.0.1
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+  minimum_dify_version: 1.11.4
+created_at: 2026-08-31T12:31:11.121515+02:00
+privacy: PRIVACY.md
+verified: false
