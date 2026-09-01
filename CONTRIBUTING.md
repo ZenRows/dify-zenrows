@@ -108,7 +108,16 @@ Against the live API in a Dify workflow:
 - Batch: 3-URL and 30-URL jobs end to end; `max_results` boundaries, both URL
   separators, mixed valid and invalid URLs, the 1000 cap
 - Errors: 401 bad key, 404 unknown job, REQS001 blocked domain
+- Adaptive Stealth Mode, both directions, against
+  `scrapingcourse.com/antibot-challenge` with `js_render` and `premium_proxy`
+  both off: on, the challenge is bypassed in 25s; off, it fails in 1.1s with
+  the REQS002 the SDK docstring warns about
 - `batch_results` fetches bodies in parallel — 25 bodies, 13.47s to 3.72s
+- Installed as a packaged `.difypkg` on Dify Cloud (not debug mode) and
+  `batch_results` run with `include_content` — content came back, so the
+  presigned-storage fetch is not blocked and `network.domains` is not enforced
+  as a hard egress allowlist. Note this was a sideloaded local plugin; a
+  marketplace-verified one could in principle run under a different policy.
 
 ## Not verified — please look here first
 
@@ -116,15 +125,3 @@ Against the live API in a Dify workflow:
 *or* caller email, and the account used for testing is on the allowlist, so
 `method: auto` returned real data on four unrelated domains. The decision logic
 is unit-tested; the HTTP round trip through it is not.
-
-**Everything ran in debug mode**, outside Dify's sandbox. The plugin has never
-run as a properly installed package.
-
-**`network.domains` may or may not be enforced at runtime.** `batch_results`
-downloads bodies from presigned storage URLs whose hostname only exists at
-request time, so it cannot be declared statically. If Dify enforces the
-allowlist, that call would be blocked once installed for real. Unresolved —
-see the notes on ACT-1564.
-
-**Adaptive Stealth Mode was added last** to match `ZenRowsClient.extract()` and
-has not been exercised against a site that actually needs escalation.
