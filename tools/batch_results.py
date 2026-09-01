@@ -44,7 +44,12 @@ class BatchResultsTool(Tool):
         job_id = str(require_param(tool_parameters, "job_id", "A job ID is required.")).strip()
         max_results = _coerce_max_results(tool_parameters.get("max_results"))
         include_content = as_bool(tool_parameters.get("include_content", True))
-        status_filter = (tool_parameters.get("status_filter") or "").strip() or None
+        # "all" is an explicit option rather than an empty value: Dify rejects the
+        # whole tool declaration if a select option has `value: ""`, and without a
+        # third option a user who picks a filter has no way back to every task.
+        status_filter = (tool_parameters.get("status_filter") or "").strip().lower() or None
+        if status_filter == "all":
+            status_filter = None
 
         api_key = str(self.runtime.credentials.get("api_key", "")).strip()
 

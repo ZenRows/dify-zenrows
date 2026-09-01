@@ -53,10 +53,16 @@ parameters:
     required: false
     label:
       en_US: Only include
+    default: all
     human_description:
-      en_US: Limit results to tasks with a particular status. Leave unset to include all.
-    llm_description: Optionally return only tasks with this status. Omit to include every task.
+      en_US: Limit results to tasks with a particular status. "All results" includes every task.
+    llm_description: >
+      Optionally return only tasks with this status. Use "all" (the default) to include
+      every task regardless of outcome.
     options:
+      - value: all
+        label:
+          en_US: All results
       - value: successful
         label:
           en_US: Successful only
