@@ -180,3 +180,4 @@ Thumbs.db
 .env.example
 GUIDE.md
 CONTRIBUTING.md
+tests/

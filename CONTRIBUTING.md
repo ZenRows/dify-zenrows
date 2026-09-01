@@ -135,6 +135,24 @@ automate submission. Until someone fixes it, submission is manual: package,
 validate, fork `langgenius/dify-plugins`, add the plugin under
 `<Author>/<plugin-name>/`, open a PR.
 
+## Tests
+
+```bash
+uv run python tests/test_units.py
+```
+
+No framework, no dependencies, exits non-zero on failure. Excluded from the
+package.
+
+It deliberately covers a narrow set: every function in it shipped a real bug
+during development — string booleans read as truthy, a default-on parameter
+that defaulted off, the AUTH010 overloading, and the status filter. It is a
+regression net for the things that have actually broken, not a coverage
+exercise. Anything you touch in `utils/errors.py` should be pinned here too.
+
+Tool behaviour beyond that is verified by running the plugin against the live
+API in a Dify workflow — see Verified below.
+
 ## Gotchas worth knowing before you change anything
 
 **A malformed tool YAML takes down the whole plugin, not just that tool.** Dify
