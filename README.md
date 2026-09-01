@@ -13,6 +13,19 @@ workflows and agents. Zenrows handles JavaScript rendering, anti-bot protection
 and proxy rotation, so a tool call returns the page content rather than a block
 page.
 
+### Tools
+
+| Tool | What it does |
+| --- | --- |
+| **Fetch** | Retrieve one page. Optional JavaScript rendering, premium proxies, country geolocation, wait-for-selector and full-page screenshot. Returns HTML, Markdown, plain text, PDF or an image. |
+| **Extract** | Return structured JSON instead of page content — site-tailored extraction, general-purpose autoparse, your own CSS selectors, or built-in filters for emails, links, tables and similar. |
+| **Batch Create** | Submit up to 1000 URLs as a single asynchronous job. Returns a job ID, or waits for the job if it is small. |
+| **Batch Status** | Check how far a job has progressed, how many tasks failed, and what it has cost so far. |
+| **Batch Results** | Collect the scraped content from a finished job. |
+
+Use **Fetch** when you want the page. Use **Extract** when you want fields out of
+the page. Use **Batch** when you have more URLs than one request should carry.
+
 ### Setup
 
 1. Get a Zenrows API key from https://app.zenrows.com — the dashboard shows it

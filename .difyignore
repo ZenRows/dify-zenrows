@@ -179,3 +179,4 @@ Thumbs.db
 # Scaffold / dev-only files, not part of the published plugin
 .env.example
 GUIDE.md
+CONTRIBUTING.md
