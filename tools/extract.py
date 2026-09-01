@@ -109,6 +109,17 @@ class ExtractTool(Tool):
         if as_bool(tool_parameters.get("premium_proxy")):
             shared["premium_proxy"] = True
 
+        # Adaptive Stealth Mode, on by default, matching ZenRowsClient.extract()
+        # in the Python SDK. Without it a target that needs js_render or
+        # premium_proxy fails with REQS002 instead of being escalated. The wire
+        # param is `mode` and is unrelated to this tool's `method` parameter.
+        # It rides on the autoparse fallback too, exactly as the SDK does.
+        # Default-on: an absent key and an explicit null both mean "not set",
+        # and `.get(key, True)` would return None for the latter.
+        _stealth = tool_parameters.get("adaptive_stealth")
+        if _stealth is None or as_bool(_stealth):
+            shared["mode"] = "auto"
+
         api_key = str(self.runtime.credentials.get("api_key", "")).strip()
 
         try:

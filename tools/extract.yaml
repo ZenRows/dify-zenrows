@@ -91,6 +91,20 @@ parameters:
       en_US: Load the page in a real browser first, so JavaScript-generated content is included. Slower and costs more credits.
     llm_description: Set true when the data is rendered by JavaScript and would be missing from the raw HTML.
     form: llm
+  - name: adaptive_stealth
+    type: boolean
+    required: false
+    default: true
+    label:
+      en_US: Adaptive stealth
+    human_description:
+      en_US: Let Zenrows escalate to JavaScript rendering or premium proxies automatically when a site needs them. On by default. Turn it off to control those yourself; extraction may then fail on protected sites.
+    llm_description: >
+      Whether Zenrows may automatically escalate to JavaScript rendering or premium
+      proxies when the target site requires them. Leave on (the default) unless the
+      caller wants to control those settings manually — with it off, protected sites
+      fail instead of being escalated. Escalation costs more credits per request.
+    form: form
   - name: premium_proxy
     type: boolean
     required: false
