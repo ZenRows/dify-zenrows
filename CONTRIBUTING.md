@@ -71,6 +71,34 @@ Exit 0 and "Blocking failures: 0" is the bar. `--pr-body-file` is not optional:
 without it the sensitive-capability disclosure check is skipped, and that one is
 blocking when it runs for real on the submission PR.
 
+## Installing the package instead of debugging
+
+Debug mode is the fast loop and is right for almost everything. Install the
+packaged plugin when you want to test the artifact as it will actually ship —
+Dify runs it in its own runtime rather than as a process on your machine, which
+is a different path for anything binary (screenshot, PDF) and for the presigned
+storage downloads in `batch_results`.
+
+**Stop the debug process first.** Both register as `zenrows/zenrows`. If the
+debug connection is live you will either get a conflict or silently test the
+wrong one, and the run panel will not tell you which.
+
+1. `Ctrl-C` the `uv run python -m main` process.
+2. In Dify: **Integrations → Tool Plugin → Install → Local Package File**, and
+   pick the built `.difypkg`. Accept the unverified-plugin warning — that is
+   expected for anything not installed from the marketplace.
+3. Check the badge on the plugin card. `LOCAL PLUGIN` means you are running the
+   package; `DEBUGGING PLUGIN` means you are still on the debug connection.
+   That badge is the only reliable way to tell which build a run used.
+
+To go back to debug, uninstall the local plugin first, then start the process
+again. Same collision, opposite direction.
+
+Note that Dify may refuse to install the same version number over itself. If you
+need to iterate on an installed build rather than in debug, bump the version in
+`manifest.yaml`, `pyproject.toml`, `tools/client.py` and `README.md` — or just
+use debug mode, which is what it is for.
+
 ## Gotchas worth knowing before you change anything
 
 **A malformed tool YAML takes down the whole plugin, not just that tool.** Dify
