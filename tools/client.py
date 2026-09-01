@@ -1,6 +1,6 @@
-"""HTTP layer for every ZenRows call the plugin makes.
+"""HTTP layer for every Zenrows call the plugin makes.
 
-Everything that talks to ZenRows goes through this module. That is
+Everything that talks to Zenrows goes through this module. That is
 deliberate: the plugin calls the REST API directly because the `zenrows`
 Python SDK has not been published with Fetch/Extract/Batch (PyPI still
 serves 1.4.0), and Dify's marketplace validator rejects git/direct-URL
@@ -70,7 +70,7 @@ def _request(
             f"Timed out after {timeout}s while {action}."
         ) from exc
     except requests.RequestException as exc:
-        raise ToolInvokeError(f"Could not reach ZenRows while {action}: {exc}") from exc
+        raise ToolInvokeError(f"Could not reach Zenrows while {action}: {exc}") from exc
 
     raise_for_zenrows_error(response.status_code, response.text, action=action)
     return response
@@ -110,7 +110,7 @@ def fetch_raw(api_key: str, url: str, params: dict[str, Any], *, action: str):
     except requests.Timeout as exc:
         raise ToolInvokeError(f"Timed out after {DEFAULT_TIMEOUT}s while {action}.") from exc
     except requests.RequestException as exc:
-        raise ToolInvokeError(f"Could not reach ZenRows while {action}: {exc}") from exc
+        raise ToolInvokeError(f"Could not reach Zenrows while {action}: {exc}") from exc
     return response
 
 
@@ -142,7 +142,7 @@ def batch(
         return response.json()
     except ValueError as exc:
         raise ToolInvokeError(
-            f"ZenRows returned a non-JSON response while {action}."
+            f"Zenrows returned a non-JSON response while {action}."
         ) from exc
 
 
@@ -170,7 +170,7 @@ def verify_api_key(api_key: str) -> dict[str, Any]:
         return response.json()
     except ValueError as exc:
         raise ToolInvokeError(
-            "ZenRows returned an unexpected response while verifying the API key."
+            "Zenrows returned an unexpected response while verifying the API key."
         ) from exc
 
 # ----- Batch result bodies ---------------------------------------------

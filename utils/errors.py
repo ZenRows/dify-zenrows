@@ -1,7 +1,7 @@
-"""ZenRows API error handling.
+"""Zenrows API error handling.
 
-One place that turns a ZenRows HTTP response into an exception Dify can
-show a user. The taxonomy mirrors the ZenRows CLI's `src/core/http.ts`,
+One place that turns a Zenrows HTTP response into an exception Dify can
+show a user. The taxonomy mirrors the Zenrows CLI's `src/core/http.ts`,
 which is the reference implementation for these codes.
 
 The distinctions that matter:
@@ -15,7 +15,7 @@ The distinctions that matter:
 * 429 is not always a quota problem. It is also returned for an account
   concurrency cap and for target-site rate limiting, so the message must
   not tell users to buy credits they may not need.
-* `REQS001` is permanent. ZenRows refuses that domain at the policy layer;
+* `REQS001` is permanent. Zenrows refuses that domain at the policy layer;
   js_render, premium_proxy and retries all fail identically.
 """
 
@@ -38,8 +38,8 @@ class ToolParameterValidationError(Exception):
 PASSTHROUGH_ERRORS = (ToolInvokeError, ToolParameterValidationError)
 
 
-class ZenRowsApiError(ToolInvokeError):
-    """A non-2xx from the ZenRows API, with the parsed error envelope."""
+class ZenrowsApiError(ToolInvokeError):
+    """A non-2xx from the Zenrows API, with the parsed error envelope."""
 
     def __init__(self, message: str, *, status: int, code: str | None = None):
         super().__init__(message)
@@ -48,7 +48,7 @@ class ZenRowsApiError(ToolInvokeError):
 
 
 def parse_error_envelope(body: str) -> dict[str, Any]:
-    """ZenRows errors are JSON: {code, title, detail, status, type}.
+    """Zenrows errors are JSON: {code, title, detail, status, type}.
 
     Returns {} for anything that is not that shape — an HTML error page from
     an intermediary, an empty body, a truncated response.
@@ -96,7 +96,7 @@ def is_extract_domain_not_enabled(status: int, body: str) -> bool:
 
 
 def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
-    """Raise the right error for a non-2xx ZenRows response.
+    """Raise the right error for a non-2xx Zenrows response.
 
     `action` names what was being attempted, e.g. "fetching the page".
     """
@@ -107,8 +107,8 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
     detail = error_detail(body) or (body[:240] if body else "")
 
     if status in (401, 403):
-        raise ZenRowsApiError(
-            "ZenRows rejected the API key. Check the key in your ZenRows "
+        raise ZenrowsApiError(
+            "Zenrows rejected the API key. Check the key in your Zenrows "
             f"dashboard and update the plugin credentials. {detail}".strip(),
             status=status,
             code=code,
@@ -118,14 +118,14 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
         if code == "AUTH010":
             # The caller should have handled this before reaching here; if it
             # did not, say what it is rather than reporting a billing problem.
-            raise ZenRowsApiError(
+            raise ZenrowsApiError(
                 "Extract is not enabled for this domain yet. Retry with "
-                f"autoparse, or contact ZenRows support. {detail}".strip(),
+                f"autoparse, or contact Zenrows support. {detail}".strip(),
                 status=status,
                 code=code,
             )
-        raise ZenRowsApiError(
-            "Your ZenRows account is out of credits. Add credits or upgrade "
+        raise ZenrowsApiError(
+            "Your Zenrows account is out of credits. Add credits or upgrade "
             f"your plan, then retry. {detail}".strip(),
             status=status,
             code=code,
@@ -134,8 +134,8 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
     if status == 429:
         # Could be a quota, a concurrency cap, or the target site. Say so
         # rather than sending everyone to the billing page.
-        raise ZenRowsApiError(
-            "Rate limited by ZenRows (HTTP 429). This may be an account "
+        raise ZenrowsApiError(
+            "Rate limited by Zenrows (HTTP 429). This may be an account "
             "concurrency cap or the target site rate limiting, not "
             f"necessarily exhausted credits. Wait and retry. {detail}".strip(),
             status=status,
@@ -143,15 +143,15 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
         )
 
     if code == "REQS001":
-        raise ZenRowsApiError(
-            "ZenRows does not allow scraping this domain. This is permanent — "
+        raise ZenrowsApiError(
+            "Zenrows does not allow scraping this domain. This is permanent — "
             f"retrying or changing options will not help. {detail}".strip(),
             status=status,
             code=code,
         )
 
-    raise ZenRowsApiError(
-        f"ZenRows returned HTTP {status} while {action}. {detail}".strip(),
+    raise ZenrowsApiError(
+        f"Zenrows returned HTTP {status} while {action}. {detail}".strip(),
         status=status,
         code=code,
     )

@@ -5,15 +5,15 @@ name: zenrows
 repo: https://github.com/ZenRows/dify-zenrows
 contact: support@zenrows.com
 label:
-  en_US: ZenRows
-  ja_JP: ZenRows
-  zh_Hans: ZenRows
-  pt_BR: ZenRows
+  en_US: Zenrows
+  ja_JP: Zenrows
+  zh_Hans: Zenrows
+  pt_BR: Zenrows
 description:
-  en_US: Fetch and extract data from any website with ZenRows
-  ja_JP: Fetch and extract data from any website with ZenRows
-  zh_Hans: Fetch and extract data from any website with ZenRows
-  pt_BR: Fetch and extract data from any website with ZenRows
+  en_US: Fetch and extract data from any website with Zenrows
+  ja_JP: Fetch and extract data from any website with Zenrows
+  zh_Hans: Fetch and extract data from any website with Zenrows
+  pt_BR: Fetch and extract data from any website with Zenrows
 icon: icon.svg
 icon_dark: icon-dark.svg
 plugin_tag:

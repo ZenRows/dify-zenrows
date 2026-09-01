@@ -5,9 +5,9 @@ identity:
     en_US: Fetch
 description:
   human:
-    en_US: Fetch any web page through ZenRows, bypassing anti-bot protection, JavaScript rendering and geo-restrictions. Returns the page content.
+    en_US: Fetch any web page through Zenrows, bypassing anti-bot protection, JavaScript rendering and geo-restrictions. Returns the page content.
   llm: |
-    Retrieves the content of a single web page through the ZenRows API. Use this whenever
+    Retrieves the content of a single web page through the Zenrows API. Use this whenever
     you need the actual content of a URL and a plain HTTP request would be blocked, return
     a challenge page, or miss JavaScript-rendered content. Returns HTML by default; set
     response_type to markdown or plaintext when the content is going to a language model.
