@@ -86,13 +86,41 @@ def error_detail(body: str) -> str | None:
     return f"({code}) {label}"
 
 
+# AUTH010 is overloaded upstream: it means both "your plan does not include
+# Extract" and "Extract is not enabled for this domain yet". Only the second is
+# recoverable by falling back to autoparse — falling back on a plan restriction
+# would silently downgrade every call and never tell the user to upgrade.
+#
+# The two are only distinguishable by the `detail` text. This mirrors
+# `ScraperApiException::isDomainScopedExtractRestriction` in the ZenRows app;
+# note that "private beta" alone is not sufficient, because "Extract is in
+# private beta and is not included in your plan" is a plan restriction.
+_DOMAIN_SCOPED_PHRASES = (
+    "not enabled for the requested domain",
+    "not enabled for this domain",
+)
+
+
+def is_domain_scoped_extract_restriction(body: str) -> bool:
+    """True when an AUTH010 detail is about the domain, not the plan."""
+    text = (error_detail(body) or "").lower()
+    if not text:
+        return False
+    if any(phrase in text for phrase in _DOMAIN_SCOPED_PHRASES):
+        return True
+    return "private beta" in text and "domain" in text
+
+
 def is_extract_domain_not_enabled(status: int, body: str) -> bool:
-    """True only for the recoverable 402 — the Extract beta gate.
+    """True only for the recoverable 402 — the Extract beta gate on a domain.
 
     Callers use this to decide whether falling back to `autoparse` is safe.
-    Deliberately narrow: a 402 without `AUTH010` is a credits failure.
+    Deliberately narrow: a 402 without `AUTH010` is a credits failure, and an
+    AUTH010 that is not domain-scoped is a plan restriction the user must see.
     """
-    return status == 402 and error_code(body) == "AUTH010"
+    if status != 402 or error_code(body) != "AUTH010":
+        return False
+    return is_domain_scoped_extract_restriction(body)
 
 
 def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
@@ -116,11 +144,18 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
 
     if status == 402:
         if code == "AUTH010":
-            # The caller should have handled this before reaching here; if it
-            # did not, say what it is rather than reporting a billing problem.
+            # Two different failures share this code — say which one it is
+            # rather than reporting a billing problem for either.
+            if is_domain_scoped_extract_restriction(body):
+                raise ZenrowsApiError(
+                    "Extract is not enabled for this domain yet. Retry with "
+                    f"autoparse, or contact Zenrows support. {detail}".strip(),
+                    status=status,
+                    code=code,
+                )
             raise ZenrowsApiError(
-                "Extract is not enabled for this domain yet. Retry with "
-                f"autoparse, or contact Zenrows support. {detail}".strip(),
+                "Extract is not available on your Zenrows plan. Upgrade to "
+                f"use it, or switch this tool to autoparse. {detail}".strip(),
                 status=status,
                 code=code,
             )
