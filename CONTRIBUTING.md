@@ -14,6 +14,27 @@ never published, so PyPI still serves 1.4.0 from Nov 2024. Every HTTP call is
 contained in `tools/client.py` so the swap is one file when the SDK ships.
 Tracked in ACT-1598.
 
+## Code layout
+
+```
+manifest.yaml          plugin metadata, declared outbound hosts, version
+provider/zenrows.yaml  credential schema, and the list of tool yamls
+provider/zenrows.py    credential validation on save
+tools/<name>.yaml      one per tool: parameters, labels, LLM descriptions
+tools/<name>.py        one per tool: parameter handling and the response shape
+tools/client.py        every HTTP call the plugin makes, in one place
+utils/errors.py        the Zenrows error taxonomy and the exceptions Dify shows
+utils/batch.py         batch job polling, status vocabulary, run summaries
+```
+
+Two rules worth keeping. All HTTP goes through `tools/client.py` — that is what
+makes the eventual SDK swap a one-file change. And all error interpretation goes
+through `utils/errors.py`, so a tool never decides for itself what an API failure
+means.
+
+Each tool is a yaml/py pair and both must be listed in `provider/zenrows.yaml`
+under `tools:`. Adding a tool without listing it there silently does nothing.
+
 ## Requirements
 
 - Python 3.12+ (`dify-plugin>=0.9.0` requires it; the scaffold's `>=3.11` was wrong)
@@ -98,6 +119,21 @@ Note that Dify may refuse to install the same version number over itself. If you
 need to iterate on an installed build rather than in debug, bump the version in
 `manifest.yaml`, `pyproject.toml`, `tools/client.py` and `README.md` — or just
 use debug mode, which is what it is for.
+
+## The bundled GitHub workflow does not work
+
+`.github/workflows/plugin-publish.yml` came from the scaffold and has never been
+run. Do not cut a GitHub release expecting it to publish anything. As generated
+it pins the Dify CLI at 0.0.6, runs on `depot-ubuntu-24.04`, checks out a
+`zenrows/dify-plugins` fork that does not exist, needs a `PLUGIN_ACTION` PAT
+secret we have not created, and pushes a branch named
+`bump-<name>-plugin-<version>` while telling `gh pr create` the head is
+`<author>:<name>-<version>` — that mismatch alone makes PR creation fail.
+
+It is kept because it is a reasonable starting point if we later want to
+automate submission. Until someone fixes it, submission is manual: package,
+validate, fork `langgenius/dify-plugins`, add the plugin under
+`<Author>/<plugin-name>/`, open a PR.
 
 ## Gotchas worth knowing before you change anything
 
