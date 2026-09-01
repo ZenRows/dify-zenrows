@@ -1,7 +1,7 @@
 ## Zenrows
 
 **Author:** zenrows
-**Version:** 0.0.1
+**Version:** 0.1.0
 **Type:** tool
 **Repository:** https://github.com/ZenRows/dify-zenrows
 **Contact:** support@zenrows.com

@@ -28,7 +28,7 @@ FETCH_BASE = "https://api.zenrows.com/v1/"
 BATCH_BASE = "https://async.api.zenrows.com/v1"
 SUBSCRIPTION_URL = "https://api.zenrows.com/v1/subscriptions/self/details"
 
-PLUGIN_VERSION = "0.0.1"
+PLUGIN_VERSION = "0.1.0"
 USER_AGENT = f"zenrows-dify-plugin/{PLUGIN_VERSION}"
 
 # Dify caps a tool invocation at 120s (MAX_REQUEST_TIMEOUT in main.py), so no
