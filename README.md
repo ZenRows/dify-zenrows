@@ -45,6 +45,13 @@ Add a Zenrows node to a workflow and pass it a URL. The tool returns the page
 content, which you can feed into an LLM node, a knowledge base, or any
 downstream step.
 
+### Development
+
+Working on the plugin itself, or reviewing it? See
+[CONTRIBUTING.md](CONTRIBUTING.md) — running it against Dify in debug mode,
+building the `.difypkg`, validating it, installing it locally, and the known
+gotchas.
+
 ### License
 
 MIT — see [LICENSE](LICENSE).
