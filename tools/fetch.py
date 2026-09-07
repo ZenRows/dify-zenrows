@@ -74,6 +74,18 @@ class FetchTool(Tool):
         if as_bool(tool_parameters.get("premium_proxy")):
             params["premium_proxy"] = True
 
+        # Adaptive Stealth Mode, on by default, matching the Extract tool and
+        # `ZenRowsClient.extract()` in the Python SDK. Without it a target that
+        # needs js_render or premium_proxy fails with REQS002 instead of being
+        # escalated. The wire param is `mode`. It sits alongside the explicit
+        # js_render / premium_proxy toggles rather than replacing them: a caller
+        # who sets those keeps them and only gains escalation headroom.
+        # Default-on: an absent key and an explicit null both mean "not set",
+        # and `.get(key, True)` would return None for the latter.
+        _stealth = tool_parameters.get("adaptive_stealth")
+        if _stealth is None or as_bool(_stealth):
+            params["mode"] = "auto"
+
         proxy_country = (tool_parameters.get("proxy_country") or "").strip().lower()
         if proxy_country:
             # proxy_country only takes effect with premium_proxy; setting one
