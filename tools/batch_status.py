@@ -18,6 +18,10 @@ class BatchStatusTool(Tool):
         try:
             job = get_job(api_key, job_id)
             result = run_summary(job)
+            # Same reason as batch_create: run_summary takes job_id from the
+            # payload, and GET /jobs/{id} need not repeat it in the body. The
+            # caller gave us the id, so echo that rather than a possible null.
+            result["job_id"] = job_id
 
             if result.get("finished"):
                 message = (

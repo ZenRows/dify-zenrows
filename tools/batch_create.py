@@ -83,6 +83,13 @@ class BatchCreateTool(Tool):
                 result = run_summary(job)
                 result["accepted_tasks"] = submitted.get("accepted_tasks")
 
+            # `run_summary` reads job_id out of whatever payload it was handed.
+            # The POST response carries one; GET /jobs/{id} need not, since the
+            # id is already in the path — so with `wait` on, the summary's
+            # job_id came back null and every downstream node lost the
+            # reference. The id from the submission is the authoritative one.
+            result["job_id"] = job_id
+
             if result.get("finished"):
                 message = (
                     f"Batch job {job_id} finished: {result.get('successful')} of "
