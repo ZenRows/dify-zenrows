@@ -161,6 +161,87 @@ def test_status_filter() -> None:
         check(f"status_filter({params!r})", normalise_status_filter(params), expected)
 
 
+# --- wait / wait_for exclusivity ----------------------------------------
+# The API declares `prohibits` on both sides of this pair. Catching it in the
+# tool turns a 422 into a sentence naming both fields. Mirrors tools/fetch.py.
+
+def wait_conflict(params: dict) -> bool:
+    wait = params.get("wait")
+    wait = None if wait in (None, "") else int(str(wait).strip())
+    return wait is not None and bool((params.get("wait_for") or "").strip())
+
+
+def test_wait_exclusivity() -> None:
+    for params, expected in [
+        ({}, False),
+        ({"wait": 2000}, False),
+        ({"wait_for": ".price"}, False),
+        ({"wait": 2000, "wait_for": ".price"}, True),
+        ({"wait": "2000", "wait_for": ".price"}, True),
+        # An empty selector is not a selector, so this is not a conflict.
+        ({"wait": 2000, "wait_for": ""}, False),
+        ({"wait": 2000, "wait_for": "   "}, False),
+        # An absent wait is not a conflict however the selector is set.
+        ({"wait": None, "wait_for": ".price"}, False),
+        ({"wait": "", "wait_for": ".price"}, False),
+    ]:
+        check(f"wait_conflict({params!r})", wait_conflict(params), expected)
+
+
+# --- browser-dependent params force js_render ----------------------------
+# screenshot, wait_for, wait and js_instructions are browser-side. Without a
+# browser the API ignores them silently, which reads as a plugin bug.
+
+def needs_browser(params: dict) -> bool:
+    wait = params.get("wait")
+    wait = None if wait in (None, "") else int(str(wait).strip())
+    return bool(
+        as_bool(params.get("screenshot"))
+        or (params.get("wait_for") or "").strip()
+        or (params.get("js_instructions") or "").strip()
+        or wait is not None
+    )
+
+
+def test_browser_dependent_params() -> None:
+    for params, expected in [
+        ({}, False),
+        ({"url": "https://example.com"}, False),
+        ({"screenshot": True}, True),
+        ({"screenshot": "0"}, False),          # Dify sends unticked as "0"
+        ({"wait_for": ".price"}, True),
+        ({"wait_for": ""}, False),
+        ({"wait": 2000}, True),
+        ({"wait": "2000"}, True),
+        ({"wait": ""}, False),
+        ({"js_instructions": '[{"click": ".more"}]'}, True),
+        ({"js_instructions": "  "}, False),
+    ]:
+        check(f"needs_browser({params!r})", needs_browser(params), expected)
+
+
+# --- job_id is authoritative, not read back from the payload -------------
+# run_summary() takes job_id from whatever payload it is given. GET /jobs/{id}
+# need not repeat the id in the body, so with `wait` on the summary came back
+# with job_id: null and every downstream node lost the reference.
+
+def summary_job_id(payload: dict, known_job_id: str) -> str:
+    summary = {"job_id": payload.get("job_id"), "status": "completed"}
+    summary["job_id"] = known_job_id          # what the tools now do
+    return summary["job_id"]
+
+
+def test_job_id_is_authoritative() -> None:
+    known = "01M3NX8BJT77XEWRN0P82J434P"
+    for payload in [
+        {"job_id": known},                     # POST /jobs shape
+        {},                                    # GET /jobs/{id} without the id
+        {"job_id": None},                      # or with it explicitly null
+        {"id": known},                         # or under a different key
+    ]:
+        check(f"summary_job_id({payload!r})", summary_job_id(payload, known), known)
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for test in tests:

@@ -8,6 +8,7 @@ from tools.client import fetch
 from utils.errors import (
     PASSTHROUGH_ERRORS,
     ToolInvokeError,
+    ToolParameterValidationError,
     as_bool,
     require_param,
     validate_url,
@@ -47,6 +48,29 @@ def _image_mime(blob: bytes, header_value: str | None) -> str:
     return "image/png"
 
 
+
+def _positive_int(value: object, param_name: str) -> int | None:
+    """Read an optional positive integer parameter.
+
+    Dify sends numbers through as strings often enough that int() alone is not
+    safe, and a bad value should name the field rather than surfacing as a
+    TypeError from deep inside the request build.
+    """
+    if value is None or value == "":
+        return None
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        raise ToolParameterValidationError(
+            f"{param_name} must be a whole number of milliseconds, for example 2000."
+        ) from None
+    if parsed <= 0:
+        raise ToolParameterValidationError(
+            f"{param_name} must be greater than zero; got {parsed}."
+        )
+    return parsed
+
+
 class FetchTool(Tool):
     def _invoke(
         self, tool_parameters: dict[str, Any]
@@ -62,11 +86,25 @@ class FetchTool(Tool):
         js_render = as_bool(tool_parameters.get("js_render"))
         screenshot = as_bool(tool_parameters.get("screenshot"))
         wait_for = (tool_parameters.get("wait_for") or "").strip()
+        js_instructions = (tool_parameters.get("js_instructions") or "").strip()
+        wait = _positive_int(tool_parameters.get("wait"), "wait")
 
-        # screenshot and wait_for are browser-side features: without a browser
-        # the API silently ignores them, which looks like a plugin bug. Turn
-        # js_render on rather than returning something the user did not ask for.
-        if screenshot or wait_for:
+        # The API rejects `wait` and `wait_for` together (`prohibits` on both
+        # sides of the rule pair). Catch it here so the user gets a sentence
+        # naming both fields rather than a 422 they have to decode.
+        if wait is not None and wait_for:
+            raise ToolParameterValidationError(
+                "Wait (ms) and Wait for selector cannot both be set — the API rejects "
+                "the combination. Use Wait for a fixed delay, or Wait for selector to "
+                "wait until an element appears."
+            )
+
+        # These are all browser-side features: without a browser the API
+        # silently ignores them, which looks like a plugin bug. Turn js_render
+        # on rather than returning something the user did not ask for. (Adaptive
+        # stealth also satisfies the API's requirement, but it can decline to
+        # escalate, so do not rely on it to supply the browser.)
+        if screenshot or wait_for or js_instructions or wait is not None:
             js_render = True
 
         if js_render:
@@ -95,6 +133,10 @@ class FetchTool(Tool):
 
         if wait_for:
             params["wait_for"] = wait_for
+        if wait is not None:
+            params["wait"] = wait
+        if js_instructions:
+            params["js_instructions"] = js_instructions
         if screenshot:
             params["screenshot"] = True
             # A screenshot is an image, so a text response_type is meaningless.

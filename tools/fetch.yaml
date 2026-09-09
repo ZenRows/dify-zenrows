@@ -100,6 +100,33 @@ parameters:
       en_US: CSS selector to wait for before capturing the page. Requires JavaScript rendering.
     llm_description: Optional CSS selector the page must contain before the content is captured. Only applies when js_render is enabled.
     form: llm
+  - name: wait
+    type: number
+    required: false
+    label:
+      en_US: Wait (ms)
+    human_description:
+      en_US: Fixed delay in milliseconds before the page is captured, for example 2000. Cannot be combined with Wait for selector. Requires JavaScript rendering or adaptive stealth.
+    llm_description: >
+      Fixed delay in MILLISECONDS to wait before capturing the page, e.g. 2000 for two
+      seconds. Use when content appears after a short delay and no stable CSS selector
+      exists; prefer wait_for when one does. Mutually exclusive with wait_for — setting
+      both is rejected. Only applies when JavaScript rendering or adaptive stealth is on.
+    form: llm
+  - name: js_instructions
+    type: string
+    required: false
+    label:
+      en_US: JavaScript instructions
+    human_description:
+      en_US: 'JSON array of browser actions to run before the page is captured, for example [{"click": ".load-more"}, {"wait": 500}]. Requires JavaScript rendering.'
+    llm_description: >
+      A JSON array of browser actions performed before the page is captured, for example
+      [{"click": ".load-more"}, {"wait": 500}, {"scroll_y": 1500}]. Use to dismiss a
+      banner, expand content or paginate before reading the page. Must be valid JSON —
+      an array of single-key objects. Requires JavaScript rendering, which is enabled
+      automatically when this is set.
+    form: llm
   - name: screenshot
     type: boolean
     required: false
