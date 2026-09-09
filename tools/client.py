@@ -1,18 +1,20 @@
-"""HTTP layer for every Zenrows call the plugin makes.
+"""Zenrows access for the plugin, on top of the `zenrows` SDK.
 
-Everything that talks to Zenrows goes through this module. That is
-deliberate: the plugin calls the REST API directly because the `zenrows`
-Python SDK has not been published with Fetch/Extract/Batch (PyPI still
-serves 1.4.0), and Dify's marketplace validator rejects git/direct-URL
-installs, so depending on the repo is not an option either. When a release
-lands on PyPI, this file is the only one that changes.
+Fetch and Extract go through `zenrows.ZenRowsClient`, which returns a plain
+`requests.Response` — so the error taxonomy in `utils/errors.py` still owns
+how a non-2xx becomes a user-facing message.
 
-Two clients, not one abstraction — the two APIs genuinely differ:
+Two things the SDK deliberately does not do for us:
 
-  Fetch / Extract   GET https://api.zenrows.com/v1/   auth: `apikey` query param
-  Batch             https://async.api.zenrows.com/v1  auth: `X-API-Key` header
+  * It passes params straight through, so Python `True` would reach the wire
+    as `"True"`. The API wants lowercase. `_normalise` handles that.
+  * `ZenRowsClient` has no `user_agent` argument (unlike `ZenRowsBatchClient`),
+    and supplying headers flips the gateway into `custom_headers` mode, which
+    forwards them to the *target* site. So the plugin's attribution UA cannot
+    ride on these calls today; it still does on Batch.
 
-Attribution rides in the User-Agent, matching the CLI's `zenrows-cli/<ver>`.
+`verify_api_key` stays on plain `requests`: it reads billing state, which is
+outside the SDK's surface.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import requests
+from zenrows import ZenRowsClient
 
 from utils.errors import ToolInvokeError, raise_for_zenrows_error
 
@@ -79,39 +82,38 @@ def _request(
 # ----- Fetch / Extract -------------------------------------------------
 
 
-def fetch(api_key: str, url: str, params: dict[str, Any], *, action: str) -> requests.Response:
-    """GET api.zenrows.com/v1/ with `apikey` and `url` plus scraper params.
-
-    Returns the raw response: callers decide whether the body is text, JSON
-    or binary, since `response_type` and `screenshot` change that.
-    """
-    query: dict[str, Any] = {"apikey": api_key, "url": url}
+def _normalise(params: dict[str, Any]) -> dict[str, Any]:
+    """Drop unset values and lowercase booleans — the API rejects "True"."""
+    out: dict[str, Any] = {}
     for key, value in params.items():
         if value is None or value == "":
             continue
-        # The API takes lowercase string booleans, not Python's True/False.
-        query[key] = "true" if value is True else "false" if value is False else value
-    return _request("GET", FETCH_BASE, params=query, action=action)
+        out[key] = "true" if value is True else "false" if value is False else value
+    return out
 
 
-def fetch_raw(api_key: str, url: str, params: dict[str, Any], *, action: str):
-    """Same call, but hands back (status, body_text, headers) without raising
-    on 4xx — for the Extract fallback, which must inspect a 402 rather than
-    have it turned into an exception."""
-    query: dict[str, Any] = {"apikey": api_key, "url": url}
-    for key, value in params.items():
-        if value is None or value == "":
-            continue
-        query[key] = "true" if value is True else "false" if value is False else value
+def _sdk_call(api_key: str, url: str, params: dict[str, Any], *, action: str) -> requests.Response:
     try:
-        response = requests.get(
-            FETCH_BASE, params=query, headers=_headers(), timeout=DEFAULT_TIMEOUT
+        return ZenRowsClient(api_key).fetch(
+            url, params=_normalise(params), timeout=DEFAULT_TIMEOUT
         )
     except requests.Timeout as exc:
         raise ToolInvokeError(f"Timed out after {DEFAULT_TIMEOUT}s while {action}.") from exc
     except requests.RequestException as exc:
         raise ToolInvokeError(f"Could not reach Zenrows while {action}: {exc}") from exc
+
+
+def fetch(api_key: str, url: str, params: dict[str, Any], *, action: str) -> requests.Response:
+    """A scrape, with non-2xx raised through the plugin's error taxonomy."""
+    response = _sdk_call(api_key, url, params, action=action)
+    raise_for_zenrows_error(response.status_code, response.text, action=action)
     return response
+
+
+def fetch_raw(api_key: str, url: str, params: dict[str, Any], *, action: str):
+    """Same call without raising, so Extract can inspect a 402 (AUTH010)
+    rather than have it turned into an exception."""
+    return _sdk_call(api_key, url, params, action=action)
 
 
 # ----- Batch -----------------------------------------------------------
