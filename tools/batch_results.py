@@ -134,6 +134,12 @@ class BatchResultsTool(Tool):
                 yield self.create_text_message(summary + ".")
 
             yield self.create_json_message(payload)
+            # output_schema alone only populates Dify's variable picker. A
+            # downstream node can resolve these only if the tool also emits
+            # them as variable messages -- otherwise the reference arrives as
+            # the literal selector path and the call 404s.
+            for key in ("results", "returned", "truncated"):
+                yield self.create_variable_message(key, payload[key])
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:
