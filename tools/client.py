@@ -116,38 +116,6 @@ def fetch_raw(api_key: str, url: str, params: dict[str, Any], *, action: str):
     return _sdk_call(api_key, url, params, action=action)
 
 
-# ----- Batch -----------------------------------------------------------
-
-
-def batch(
-    method: str,
-    path: str,
-    api_key: str,
-    *,
-    action: str,
-    params: dict[str, Any] | None = None,
-    json_body: Any = None,
-) -> Any:
-    """Call the Batch API and return parsed JSON. Different host and a header
-    instead of a query param — see the module docstring."""
-    response = _request(
-        method,
-        f"{BATCH_BASE}{path}",
-        params=params,
-        json_body=json_body,
-        headers={"X-API-Key": api_key, "Accept": "application/json"},
-        action=action,
-    )
-    if not response.content:
-        return None
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise ToolInvokeError(
-            f"Zenrows returned a non-JSON response while {action}."
-        ) from exc
-
-
 # ----- Credential validation -------------------------------------------
 
 

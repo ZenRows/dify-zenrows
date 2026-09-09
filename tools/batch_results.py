@@ -8,9 +8,11 @@ from dify_plugin.entities.tool import ToolInvokeMessage
 from tools.client import (
     DEFAULT_MAX_RESULTS,
     MAX_RESULTS_CEILING,
-    batch,
     fetch_result_bodies,
 )
+from zenrows.batch import BatchAPIError
+
+from utils.batch import batch_client, reraise_batch_error
 from utils.errors import (
     PASSTHROUGH_ERRORS,
     ToolInvokeError,
@@ -61,23 +63,19 @@ class BatchResultsTool(Tool):
             # Page until we have enough rows. The API paginates with an opaque
             # cursor and returns next_cursor only while more pages exist.
             while len(rows) < max_results:
-                params: dict[str, Any] = {}
-                if status_filter:
-                    params["status"] = status_filter
-                if cursor:
-                    params["cursor"] = cursor
+                with batch_client(api_key) as client:
+                    page = client.list_results(
+                        job_id,
+                        status=status_filter or None,
+                        cursor=cursor or None,
+                    )
 
-                page = batch(
-                    "GET",
-                    f"/jobs/{job_id}/results",
-                    api_key,
-                    params=params or None,
-                    action="collecting the batch results",
-                ) or {}
-
-                page_rows = page.get("results") or []
-                rows.extend(page_rows)
-                cursor = page.get("next_cursor")
+                # Dump each TaskResult to a plain dict so everything below --
+                # and the tool's declared output shape -- is unchanged. The
+                # models carry no aliases, and mode="json" renders `url` and
+                # the status enum as strings.
+                rows.extend(r.model_dump(mode="json") for r in page.results)
+                cursor = page.next_cursor
                 if not cursor:
                     break
 
@@ -140,6 +138,8 @@ class BatchResultsTool(Tool):
             # the literal selector path and the call 404s.
             for key in ("results", "returned", "truncated"):
                 yield self.create_variable_message(key, payload[key])
+        except BatchAPIError as exc:
+            reraise_batch_error(exc, "collecting the batch results")
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:
