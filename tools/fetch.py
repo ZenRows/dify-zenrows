@@ -6,6 +6,7 @@ from dify_plugin.entities.tool import ToolInvokeMessage
 
 from tools.client import fetch
 from utils.errors import (
+    resolve_stealth,
     PASSTHROUGH_ERRORS,
     ToolInvokeError,
     ToolParameterValidationError,
@@ -107,21 +108,27 @@ class FetchTool(Tool):
         if screenshot or wait_for or js_instructions or wait is not None:
             js_render = True
 
+        premium_proxy = as_bool(tool_parameters.get("premium_proxy"))
         if js_render:
             params["js_render"] = True
-        if as_bool(tool_parameters.get("premium_proxy")):
+        if premium_proxy:
             params["premium_proxy"] = True
 
         # Adaptive Stealth Mode, on by default, matching the Extract tool and
         # `ZenRowsClient.extract()` in the Python SDK. Without it a target that
         # needs js_render or premium_proxy fails with REQS002 instead of being
-        # escalated. The wire param is `mode`. It sits alongside the explicit
-        # js_render / premium_proxy toggles rather than replacing them: a caller
-        # who sets those keeps them and only gains escalation headroom.
-        # Default-on: an absent key and an explicit null both mean "not set",
-        # and `.get(key, True)` would return None for the latter.
-        _stealth = tool_parameters.get("adaptive_stealth")
-        if _stealth is None or as_bool(_stealth):
+        # escalated. The wire param is `mode`.
+        #
+        # It does NOT sit alongside the explicit toggles: Zenrows treats
+        # `mode=auto` and js_render/premium_proxy as mutually exclusive and
+        # rejects a body carrying both. resolve_stealth settles which tier
+        # applies, and says so when the request is contradictory.
+        if resolve_stealth(
+            tool_parameters.get("adaptive_stealth"),
+            js_render,
+            premium_proxy,
+            tool="Fetch",
+        ):
             params["mode"] = "auto"
 
         proxy_country = (tool_parameters.get("proxy_country") or "").strip().lower()

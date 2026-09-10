@@ -7,6 +7,7 @@ from dify_plugin.entities.tool import ToolInvokeMessage
 
 from tools.client import fetch_raw
 from utils.errors import (
+    resolve_stealth,
     PASSTHROUGH_ERRORS,
     ToolInvokeError,
     ToolParameterValidationError,
@@ -104,9 +105,11 @@ class ExtractTool(Tool):
                     )
 
         shared: dict[str, Any] = {}
-        if as_bool(tool_parameters.get("js_render")):
+        js_render = as_bool(tool_parameters.get("js_render"))
+        premium_proxy = as_bool(tool_parameters.get("premium_proxy"))
+        if js_render:
             shared["js_render"] = True
-        if as_bool(tool_parameters.get("premium_proxy")):
+        if premium_proxy:
             shared["premium_proxy"] = True
 
         # Adaptive Stealth Mode, on by default, matching ZenRowsClient.extract()
@@ -116,8 +119,12 @@ class ExtractTool(Tool):
         # It rides on the autoparse fallback too, exactly as the SDK does.
         # Default-on: an absent key and an explicit null both mean "not set",
         # and `.get(key, True)` would return None for the latter.
-        _stealth = tool_parameters.get("adaptive_stealth")
-        if _stealth is None or as_bool(_stealth):
+        if resolve_stealth(
+            tool_parameters.get("adaptive_stealth"),
+            js_render,
+            premium_proxy,
+            tool="Extract",
+        ):
             shared["mode"] = "auto"
 
         api_key = str(self.runtime.credentials.get("api_key", "")).strip()
