@@ -5,8 +5,9 @@ from typing import Any
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-from tools.client import batch
-from utils.batch import run_summary, wait_for_run
+from zenrows.batch import BatchAPIError
+
+from utils.batch import batch_client, reraise_batch_error, run_summary, wait_for_run
 from utils.errors import (
     PASSTHROUGH_ERRORS,
     ToolInvokeError,
@@ -57,31 +58,36 @@ class BatchCreateTool(Tool):
         if as_bool(tool_parameters.get("premium_proxy")):
             zenrows_params["premium_proxy"] = True
 
-        body: dict[str, Any] = {
-            "type": "regular",
-            "status": "closed",
-            "tasks": [{"url": u} for u in urls],
-        }
-        if zenrows_params:
-            body["zenrows_params"] = zenrows_params
-
         api_key = str(self.runtime.credentials.get("api_key", "")).strip()
 
         try:
-            submitted = batch(
-                "POST", "/jobs", api_key, json_body=body, action="submitting the batch job"
-            )
-            job_id = submitted.get("job_id")
-            if not job_id:
-                raise ToolInvokeError("Zenrows accepted the job but returned no job_id.")
+            # `submit_regular` is the closed one-shot job -- the SDK's own
+            # docstring: "created with status=closed, so no further add_tasks
+            # calls are accepted", which is exactly the body we used to post.
+            with batch_client(api_key) as client:
+                ref = client.submit_regular(
+                    urls=list(urls), zenrows_params=zenrows_params or None
+                )
+                job_id = ref.job_id
+                if not job_id:
+                    raise ToolInvokeError("Zenrows accepted the job but returned no job_id.")
+
+                # The submit response already carries the initial run, so the
+                # first summary costs no extra round-trip.
+                submitted = (
+                    ref.submit_response.model_dump(mode="json")
+                    if ref.submit_response
+                    else {}
+                )
+                accepted = ref.accepted_tasks
 
             result = run_summary(submitted)
-            result["accepted_tasks"] = submitted.get("accepted_tasks")
+            result["accepted_tasks"] = accepted
 
             if as_bool(tool_parameters.get("wait")):
                 job = wait_for_run(api_key, job_id)
                 result = run_summary(job)
-                result["accepted_tasks"] = submitted.get("accepted_tasks")
+                result["accepted_tasks"] = accepted
 
             # `run_summary` reads job_id out of whatever payload it was handed.
             # The POST response carries one; GET /jobs/{id} need not, since the
@@ -111,6 +117,10 @@ class BatchCreateTool(Tool):
             for key in ("job_id", "run_id", "status", "finished", "accepted_tasks"):
                 if key in result:
                     yield self.create_variable_message(key, result[key])
+        except BatchAPIError as exc:
+            # Keep the plugin's error taxonomy in charge -- the SDK's own
+            # message must never reach a workflow.
+            reraise_batch_error(exc, "submitting the batch job")
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:

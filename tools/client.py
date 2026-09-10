@@ -1,18 +1,20 @@
-"""HTTP layer for every Zenrows call the plugin makes.
+"""Zenrows access for the plugin, on top of the `zenrows` SDK.
 
-Everything that talks to Zenrows goes through this module. That is
-deliberate: the plugin calls the REST API directly because the `zenrows`
-Python SDK has not been published with Fetch/Extract/Batch (PyPI still
-serves 1.4.0), and Dify's marketplace validator rejects git/direct-URL
-installs, so depending on the repo is not an option either. When a release
-lands on PyPI, this file is the only one that changes.
+Fetch and Extract go through `zenrows.ZenRowsClient`, which returns a plain
+`requests.Response` — so the error taxonomy in `utils/errors.py` still owns
+how a non-2xx becomes a user-facing message.
 
-Two clients, not one abstraction — the two APIs genuinely differ:
+Two things the SDK deliberately does not do for us:
 
-  Fetch / Extract   GET https://api.zenrows.com/v1/   auth: `apikey` query param
-  Batch             https://async.api.zenrows.com/v1  auth: `X-API-Key` header
+  * It passes params straight through, so Python `True` would reach the wire
+    as `"True"`. The API wants lowercase. `_normalise` handles that.
+  * `ZenRowsClient` has no `user_agent` argument (unlike `ZenRowsBatchClient`),
+    and supplying headers flips the gateway into `custom_headers` mode, which
+    forwards them to the *target* site. So the plugin's attribution UA cannot
+    ride on these calls today; it still does on Batch.
 
-Attribution rides in the User-Agent, matching the CLI's `zenrows-cli/<ver>`.
+`verify_api_key` stays on plain `requests`: it reads billing state, which is
+outside the SDK's surface.
 """
 
 from __future__ import annotations
@@ -21,11 +23,10 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import requests
+from zenrows import ZenRowsClient
 
 from utils.errors import ToolInvokeError, raise_for_zenrows_error
 
-FETCH_BASE = "https://api.zenrows.com/v1/"
-BATCH_BASE = "https://async.api.zenrows.com/v1"
 SUBSCRIPTION_URL = "https://api.zenrows.com/v1/subscriptions/self/details"
 
 PLUGIN_VERSION = "0.1.0"
@@ -79,71 +80,38 @@ def _request(
 # ----- Fetch / Extract -------------------------------------------------
 
 
-def fetch(api_key: str, url: str, params: dict[str, Any], *, action: str) -> requests.Response:
-    """GET api.zenrows.com/v1/ with `apikey` and `url` plus scraper params.
-
-    Returns the raw response: callers decide whether the body is text, JSON
-    or binary, since `response_type` and `screenshot` change that.
-    """
-    query: dict[str, Any] = {"apikey": api_key, "url": url}
+def _normalise(params: dict[str, Any]) -> dict[str, Any]:
+    """Drop unset values and lowercase booleans — the API rejects "True"."""
+    out: dict[str, Any] = {}
     for key, value in params.items():
         if value is None or value == "":
             continue
-        # The API takes lowercase string booleans, not Python's True/False.
-        query[key] = "true" if value is True else "false" if value is False else value
-    return _request("GET", FETCH_BASE, params=query, action=action)
+        out[key] = "true" if value is True else "false" if value is False else value
+    return out
 
 
-def fetch_raw(api_key: str, url: str, params: dict[str, Any], *, action: str):
-    """Same call, but hands back (status, body_text, headers) without raising
-    on 4xx — for the Extract fallback, which must inspect a 402 rather than
-    have it turned into an exception."""
-    query: dict[str, Any] = {"apikey": api_key, "url": url}
-    for key, value in params.items():
-        if value is None or value == "":
-            continue
-        query[key] = "true" if value is True else "false" if value is False else value
+def _sdk_call(api_key: str, url: str, params: dict[str, Any], *, action: str) -> requests.Response:
     try:
-        response = requests.get(
-            FETCH_BASE, params=query, headers=_headers(), timeout=DEFAULT_TIMEOUT
+        return ZenRowsClient(api_key).fetch(
+            url, params=_normalise(params), timeout=DEFAULT_TIMEOUT
         )
     except requests.Timeout as exc:
         raise ToolInvokeError(f"Timed out after {DEFAULT_TIMEOUT}s while {action}.") from exc
     except requests.RequestException as exc:
         raise ToolInvokeError(f"Could not reach Zenrows while {action}: {exc}") from exc
+
+
+def fetch(api_key: str, url: str, params: dict[str, Any], *, action: str) -> requests.Response:
+    """A scrape, with non-2xx raised through the plugin's error taxonomy."""
+    response = _sdk_call(api_key, url, params, action=action)
+    raise_for_zenrows_error(response.status_code, response.text, action=action)
     return response
 
 
-# ----- Batch -----------------------------------------------------------
-
-
-def batch(
-    method: str,
-    path: str,
-    api_key: str,
-    *,
-    action: str,
-    params: dict[str, Any] | None = None,
-    json_body: Any = None,
-) -> Any:
-    """Call the Batch API and return parsed JSON. Different host and a header
-    instead of a query param — see the module docstring."""
-    response = _request(
-        method,
-        f"{BATCH_BASE}{path}",
-        params=params,
-        json_body=json_body,
-        headers={"X-API-Key": api_key, "Accept": "application/json"},
-        action=action,
-    )
-    if not response.content:
-        return None
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise ToolInvokeError(
-            f"Zenrows returned a non-JSON response while {action}."
-        ) from exc
+def fetch_raw(api_key: str, url: str, params: dict[str, Any], *, action: str):
+    """Same call without raising, so Extract can inspect a 402 (AUTH010)
+    rather than have it turned into an exception."""
+    return _sdk_call(api_key, url, params, action=action)
 
 
 # ----- Credential validation -------------------------------------------
@@ -182,53 +150,49 @@ DEFAULT_MAX_RESULTS = 25
 MAX_RESULTS_CEILING = 200
 DEFAULT_MAX_BYTES_PER_BODY = 1024 * 1024  # 1 MiB
 
-
-def fetch_result_body(result_url: str, *, max_bytes: int = DEFAULT_MAX_BYTES_PER_BODY) -> str | None:
-    """GET a task's presigned `result_url` and return the body as text.
-
-    Straight to object storage: no auth header and no API round-trip. The
-    Batch API also exposes a `/tasks/{id}/content` endpoint, but that exists
-    for the web UI and proxies the body back through the API — the SDK
-    explicitly warns against using it, so do not switch to it here.
-
-    Returns None when the body is missing or larger than `max_bytes`, so one
-    oversized page cannot blow the whole tool response.
-    """
-    if not result_url:
-        return None
-    try:
-        response = requests.get(result_url, timeout=30, stream=True)
-        response.raise_for_status()
-        chunks: list[bytes] = []
-        total = 0
-        for chunk in response.iter_content(chunk_size=8192):
-            total += len(chunk)
-            if total > max_bytes:
-                return None
-            chunks.append(chunk)
-        return b"".join(chunks).decode("utf-8", errors="replace")
-    except requests.RequestException:
-        # A body that will not download should not fail the whole batch —
-        # the row still reports its status and URL.
-        return None
-
-
-# Bodies are independent unauthenticated GETs against object storage, so they
-# parallelise cleanly. Sequentially, 25 bodies measured ~13.5s; at the 200
-# ceiling that alone would exceed Dify's 120s invocation limit before any API
-# calls. Eight workers keeps the wall time roughly flat as the count grows.
+# Bodies are independent GETs against object storage, so they parallelise
+# cleanly. Sequentially, 25 bodies measured ~13.5s; at the 200 ceiling that
+# alone would exceed Dify's 120s invocation limit before any API calls. Eight
+# workers keeps the wall time roughly flat as the count grows.
 RESULT_FETCH_WORKERS = 8
 
 
-def fetch_result_bodies(
-    result_urls: list[str | None], *, max_bytes: int = DEFAULT_MAX_BYTES_PER_BODY
-) -> list[str | None]:
-    """Fetch many result bodies in parallel, preserving input order."""
-    if not result_urls:
-        return []
-    workers = min(RESULT_FETCH_WORKERS, len(result_urls))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        return list(
-            pool.map(lambda u: fetch_result_body(u or "", max_bytes=max_bytes), result_urls)
-        )
+def fetch_result_body(run, task: Any, *, max_bytes: int = DEFAULT_MAX_BYTES_PER_BODY) -> str | None:
+    """Download one task's body via the SDK and return it as text.
 
+    `RunRef.download_task_to_memory` GETs the presigned `result_url` directly -- no
+    auth header, no API content endpoint in the loop. It returns the whole
+    body with no size cap of its own, so the cap is applied here: the old
+    hand-rolled version streamed and bailed early, this one downloads then
+    discards. A body large enough to matter is rare and the ceiling is 1 MiB,
+    so the difference is transfer, not memory pressure.
+
+    Returns None when the body is missing, oversized, or will not download,
+    so one bad page cannot fail the whole batch.
+    """
+    if task is None:
+        return None
+    try:
+        body = run.download_task_to_memory(task)
+    except Exception:
+        # A body that will not download should not fail the whole batch --
+        # the row still reports its status and URL.
+        return None
+    if body is None or len(body) > max_bytes:
+        return None
+    return body.decode("utf-8", errors="replace")
+
+
+def fetch_result_bodies(
+    run, tasks: list[Any], *, max_bytes: int = DEFAULT_MAX_BYTES_PER_BODY
+) -> list[str | None]:
+    """Fetch many result bodies in parallel, preserving input order.
+
+    `run` is a RunRef; the underlying httpx client is safe to share across
+    the pool, and every body is an independent presigned GET.
+    """
+    if not tasks:
+        return []
+    workers = min(RESULT_FETCH_WORKERS, len(tasks))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(lambda t: fetch_result_body(run, t, max_bytes=max_bytes), tasks))

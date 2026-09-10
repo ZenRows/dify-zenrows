@@ -8,9 +8,11 @@ from dify_plugin.entities.tool import ToolInvokeMessage
 from tools.client import (
     DEFAULT_MAX_RESULTS,
     MAX_RESULTS_CEILING,
-    batch,
     fetch_result_bodies,
 )
+from zenrows.batch import BatchAPIError
+
+from utils.batch import batch_client, reraise_batch_error
 from utils.errors import (
     PASSTHROUGH_ERRORS,
     ToolInvokeError,
@@ -55,66 +57,75 @@ class BatchResultsTool(Tool):
 
         try:
             rows: list[dict[str, Any]] = []
+            # The TaskResult models are kept alongside their dumped form:
+            # downloading a body needs the model, not the dict.
+            tasks: list[Any] = []
             cursor: str | None = None
             more_available = False
 
-            # Page until we have enough rows. The API paginates with an opaque
-            # cursor and returns next_cursor only while more pages exist.
-            while len(rows) < max_results:
-                params: dict[str, Any] = {}
-                if status_filter:
-                    params["status"] = status_filter
-                if cursor:
-                    params["cursor"] = cursor
+            # One client for the whole tool call -- paging and the body
+            # downloads below share it, and a RunRef holds on to it.
+            with batch_client(api_key) as client:
+                # Page until we have enough rows. The API paginates with an
+                # opaque cursor and returns next_cursor only while more pages
+                # exist.
+                while len(rows) < max_results:
+                    page = client.list_results(
+                        job_id,
+                        status=status_filter or None,
+                        cursor=cursor or None,
+                    )
 
-                page = batch(
-                    "GET",
-                    f"/jobs/{job_id}/results",
-                    api_key,
-                    params=params or None,
-                    action="collecting the batch results",
-                ) or {}
+                    # Dump each TaskResult to a plain dict so everything below
+                    # -- and the tool's declared output shape -- is unchanged.
+                    # The models carry no aliases, and mode="json" renders
+                    # `url` and the status enum as strings.
+                    rows.extend(r.model_dump(mode="json") for r in page.results)
+                    tasks.extend(page.results)
+                    cursor = page.next_cursor
+                    if not cursor:
+                        break
 
-                page_rows = page.get("results") or []
-                rows.extend(page_rows)
-                cursor = page.get("next_cursor")
-                if not cursor:
-                    break
+                if len(rows) > max_results:
+                    more_available = True
+                    rows = rows[:max_results]
+                    tasks = tasks[:max_results]
+                elif cursor:
+                    more_available = True
 
-            if len(rows) > max_results:
-                more_available = True
-                rows = rows[:max_results]
-            elif cursor:
-                more_available = True
+                results: list[dict[str, Any]] = []
+                for row in rows:
+                    entry: dict[str, Any] = {
+                        "task_id": row.get("task_id"),
+                        "url": row.get("url"),
+                        "status": row.get("status"),
+                    }
+                    if row.get("error"):
+                        entry["error"] = row["error"]
+                    results.append(entry)
 
-            results: list[dict[str, Any]] = []
-            for row in rows:
-                entry: dict[str, Any] = {
-                    "task_id": row.get("task_id"),
-                    "url": row.get("url"),
-                    "status": row.get("status"),
-                }
-                if row.get("error"):
-                    entry["error"] = row["error"]
-                results.append(entry)
-
-            if include_content:
-                # Fetch every body in one parallel pass rather than one per
-                # row: sequentially this dominated the tool's runtime.
-                fetchable = [
-                    i for i, row in enumerate(rows) if row.get("status") == "successful"
-                ]
-                bodies = fetch_result_bodies(
-                    [rows[i].get("result_url") for i in fetchable]
-                )
-                for i, body in zip(fetchable, bodies):
-                    if body is None:
-                        # Either over the per-body size cap or the presigned
-                        # URL would not download. Flag it and keep going.
-                        results[i]["content"] = None
-                        results[i]["content_unavailable"] = True
-                    else:
-                        results[i]["content"] = body
+                if include_content:
+                    # Fetch every body in one parallel pass rather than one per
+                    # row: sequentially this dominated the tool's runtime.
+                    fetchable = [
+                        i for i, row in enumerate(rows) if row.get("status") == "successful"
+                    ]
+                    # A RunRef is what exposes download_task_to_memory.
+                    # Every task carries the run it belongs to. Guard the
+                    # lookup: a job where nothing succeeded has no task to
+                    # read a run_id from.
+                    bodies = []
+                    if fetchable:
+                        run = client.run(job_id, tasks[fetchable[0]].run_id)
+                        bodies = fetch_result_bodies(run, [tasks[i] for i in fetchable])
+                    for i, body in zip(fetchable, bodies):
+                        if body is None:
+                            # Either over the per-body size cap or the presigned
+                            # URL would not download. Flag it and keep going.
+                            results[i]["content"] = None
+                            results[i]["content_unavailable"] = True
+                        else:
+                            results[i]["content"] = body
 
             payload = {
                 "results": results,
@@ -140,6 +151,8 @@ class BatchResultsTool(Tool):
             # the literal selector path and the call 404s.
             for key in ("results", "returned", "truncated"):
                 yield self.create_variable_message(key, payload[key])
+        except BatchAPIError as exc:
+            reraise_batch_error(exc, "collecting the batch results")
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:
