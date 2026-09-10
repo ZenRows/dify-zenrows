@@ -92,7 +92,7 @@ def error_detail(body: str) -> str | None:
 # would silently downgrade every call and never tell the user to upgrade.
 #
 # The two are only distinguishable by the `detail` text. This mirrors
-# `ScraperApiException::isDomainScopedExtractRestriction` in the ZenRows app;
+# `ScraperApiException::isDomainScopedExtractRestriction` in the Zenrows app;
 # note that "private beta" alone is not sufficient, because "Extract is in
 # private beta and is not included in your plan" is a plan restriction.
 _DOMAIN_SCOPED_PHRASES = (
