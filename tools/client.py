@@ -102,9 +102,26 @@ def _sdk_call(api_key: str, url: str, params: dict[str, Any], *, action: str) ->
 
 
 def fetch(api_key: str, url: str, params: dict[str, Any], *, action: str) -> requests.Response:
-    """A scrape, with non-2xx raised through the plugin's error taxonomy."""
+    """A scrape, with non-2xx raised through the plugin's error taxonomy.
+
+    A 2xx carrying an empty body is treated as a failure too. Zenrows returns
+    that occasionally — the target served a challenge shell or an empty
+    document and the status still came back 200 — and passing it through as a
+    success is the silent-failure pattern this plugin exists to avoid: a
+    workflow would carry an empty string downstream and only surface it as a
+    blank report much later. Better to fail here, loudly, with a sentence
+    saying what to try.
+    """
     response = _sdk_call(api_key, url, params, action=action)
     raise_for_zenrows_error(response.status_code, response.text, action=action)
+    if not response.content:
+        raise ToolInvokeError(
+            f"Zenrows returned an empty page body for {url} (HTTP "
+            f"{response.status_code}). The target most likely served a "
+            "challenge or an empty shell rather than the page. Retry — this "
+            "is usually transient — or turn on Render JavaScript if the "
+            "content is loaded client-side."
+        )
     return response
 
 
