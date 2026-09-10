@@ -118,8 +118,8 @@ class BatchCreateTool(Tool):
                 if key in result:
                     yield self.create_variable_message(key, result[key])
         except BatchAPIError as exc:
-            # Keep the plugin's error taxonomy in charge -- the SDK's own
-            # message must never reach a workflow.
+            # utils/errors.py owns every user-facing message -- the SDK's
+            # own string must never reach a workflow.
             reraise_batch_error(exc, "submitting the batch job")
         except PASSTHROUGH_ERRORS:
             raise

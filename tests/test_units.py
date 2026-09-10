@@ -21,11 +21,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from utils.errors import (  # noqa: E402
+    ToolParameterValidationError,
     as_bool,
     error_code,
     error_detail,
     is_domain_scoped_extract_restriction,
     is_extract_domain_not_enabled,
+    resolve_stealth,
 )
 
 FAILURES: list[str] = []
@@ -240,6 +242,42 @@ def test_job_id_is_authoritative() -> None:
         {"id": known},                         # or under a different key
     ]:
         check(f"summary_job_id({payload!r})", summary_job_id(payload, known), known)
+
+
+
+# --- adaptive stealth vs the explicit tier flags -------------------------
+# Zenrows treats `mode=auto` and js_render/premium_proxy as mutually exclusive
+# and rejects a body carrying both — the reviewer hit exactly this on Extract
+# and got an error they could not act on. Stealth defaults on, so "left alone"
+# and "explicitly on" must not behave the same way.
+
+def test_resolve_stealth() -> None:
+    for label, stealth, js, pp, expected in [
+        ("unset, no flags", None, False, False, True),
+        ("unset + js_render", None, True, False, False),
+        ("unset + premium_proxy", None, False, True, False),
+        ("unset + both", None, True, True, False),
+        ("explicit on, no flags", True, False, False, True),
+        ("off, no flags", False, False, False, False),
+        ("off + js_render", False, True, False, False),
+    ]:
+        check(
+            f"resolve_stealth({label})",
+            resolve_stealth(stealth, js, pp, tool="Extract"),
+            expected,
+        )
+
+    # Explicitly asking for both must name both fields, not fail silently.
+    for label, js, pp, wanted in [
+        ("js_render", True, False, "Render JavaScript"),
+        ("premium_proxy", False, True, "Premium proxy"),
+        ("both", True, True, "Render JavaScript and Premium proxy"),
+    ]:
+        try:
+            resolve_stealth(True, js, pp, tool="Extract")
+            check(f"resolve_stealth(explicit on + {label}) raises", False, True)
+        except ToolParameterValidationError as exc:
+            check(f"resolve_stealth(explicit on + {label}) names it", wanted in str(exc), True)
 
 
 def main() -> int:

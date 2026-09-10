@@ -92,7 +92,7 @@ def error_detail(body: str) -> str | None:
 # would silently downgrade every call and never tell the user to upgrade.
 #
 # The two are only distinguishable by the `detail` text. This mirrors
-# `ScraperApiException::isDomainScopedExtractRestriction` in the ZenRows app;
+# `ScraperApiException::isDomainScopedExtractRestriction` in the Zenrows app;
 # note that "private beta" alone is not sufficient, because "Extract is in
 # private beta and is not included in your plan" is a plan restriction.
 _DOMAIN_SCOPED_PHRASES = (
@@ -227,3 +227,41 @@ def as_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in ("true", "1", "yes", "on")
     return bool(value)
+
+
+def resolve_stealth(
+    stealth_param: object, js_render: bool, premium_proxy: bool, *, tool: str
+) -> bool:
+    """Decide whether to send Adaptive Stealth Mode alongside explicit flags.
+
+    `mode=auto` and the explicit `js_render` / `premium_proxy` flags are
+    mutually exclusive at submit -- the API rejects a body carrying both. The
+    tools default stealth on, so the three cases are not symmetric:
+
+      * stealth left alone (None) + an explicit flag -> the user picked a tier
+        deliberately. Honour it and drop stealth silently; erroring here would
+        punish someone for setting js_render and never touching stealth.
+      * stealth explicitly on + an explicit flag -> the user asked for two
+        things that cannot both happen. Say so, naming both fields, rather
+        than letting the API return something they cannot act on.
+      * stealth off -> manual tier, nothing to resolve.
+
+    Returns True when `mode=auto` should be sent.
+    """
+    explicit = js_render or premium_proxy
+    if stealth_param is None:
+        return not explicit
+    if as_bool(stealth_param):
+        if explicit:
+            chosen = " and ".join(
+                n for n, v in (("Render JavaScript", js_render),
+                               ("Premium proxy", premium_proxy)) if v
+            )
+            raise ToolParameterValidationError(
+                f"Adaptive stealth cannot be combined with {chosen} — Zenrows treats "
+                f"them as mutually exclusive and rejects the request. Either turn "
+                f"adaptive stealth off and keep {chosen}, or leave {chosen} unset and "
+                f"let adaptive stealth escalate when the target needs it."
+            )
+        return True
+    return False
