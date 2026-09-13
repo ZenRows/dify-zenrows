@@ -104,7 +104,16 @@ class FetchTool(Tool):
         # on rather than returning something the user did not ask for. (Adaptive
         # stealth also satisfies the API's requirement, but it can decline to
         # escalate, so do not rely on it to supply the browser.)
-        if screenshot or wait_for or js_instructions or wait is not None:
+        # `pdf` belongs on this list too: the API answers REQS004 for a PDF
+        # without a browser, which reads as a plugin bug rather than a missing
+        # toggle. It was the one browser-dependent option not covered here.
+        if (
+            screenshot
+            or wait_for
+            or js_instructions
+            or wait is not None
+            or response_type == "pdf"
+        ):
             js_render = True
 
         premium_proxy = as_bool(tool_parameters.get("premium_proxy"))

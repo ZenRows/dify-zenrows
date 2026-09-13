@@ -203,7 +203,7 @@ def require_param(params: dict[str, Any], key: str, message: str | None = None) 
     return value
 
 
-def validate_url(url: str, param_name: str = "url") -> str:
+def validate_url(url: str, param_name: str = "URL") -> str:
     if not isinstance(url, str) or not url.strip():
         raise ToolParameterValidationError(f"{param_name} must be a non-empty string.")
     url = url.strip()
