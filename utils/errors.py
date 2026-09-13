@@ -133,11 +133,15 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
 
     code = error_code(body)
     detail = error_detail(body) or (body[:240] if body else "")
+    # Where we have a better sentence than the API's, the raw prose only
+    # repeats it at length -- Dify already prefixes every error with its own
+    # boilerplate, so the useful part has to come early. Keep the code, which
+    # is what support and the docs are searched by, and drop the duplicate.
+    tag = f" ({code})" if code else ""
 
     if status in (401, 403):
         raise ZenrowsApiError(
-            "Zenrows rejected the API key. Check the key in your Zenrows "
-            f"dashboard and update the plugin credentials. {detail}".strip(),
+            f"Update your Zenrows API key — the current one was rejected.{tag}",
             status=status,
             code=code,
         )
@@ -148,20 +152,20 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
             # rather than reporting a billing problem for either.
             if is_domain_scoped_extract_restriction(body):
                 raise ZenrowsApiError(
-                    "Extract is not enabled for this domain yet. Retry with "
-                    f"autoparse, or contact Zenrows support. {detail}".strip(),
+                    "Switch this tool to autoparse, or ask Zenrows support to "
+                    f"enable Extract for this domain.{tag}",
                     status=status,
                     code=code,
                 )
             raise ZenrowsApiError(
-                "Extract is not available on your Zenrows plan. Upgrade to "
-                f"use it, or switch this tool to autoparse. {detail}".strip(),
+                "Switch this tool to autoparse — Extract is not on your Zenrows "
+                f"plan. Upgrading adds it.{tag}",
                 status=status,
                 code=code,
             )
         raise ZenrowsApiError(
-            "Your Zenrows account is out of credits. Add credits or upgrade "
-            f"your plan, then retry. {detail}".strip(),
+            "Add credits or upgrade your plan — your Zenrows account is out "
+            f"of credits.{tag}",
             status=status,
             code=code,
         )
@@ -170,17 +174,17 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
         # Could be a quota, a concurrency cap, or the target site. Say so
         # rather than sending everyone to the billing page.
         raise ZenrowsApiError(
-            "Rate limited by Zenrows (HTTP 429). This may be an account "
-            "concurrency cap or the target site rate limiting, not "
-            f"necessarily exhausted credits. Wait and retry. {detail}".strip(),
+            "Wait and retry — rate limited (HTTP 429). This can be your "
+            "account concurrency cap or the target site, not necessarily "
+            f"exhausted credits.{tag}",
             status=status,
             code=code,
         )
 
     if code == "REQS001":
         raise ZenrowsApiError(
-            "Zenrows does not allow scraping this domain. This is permanent — "
-            f"retrying or changing options will not help. {detail}".strip(),
+            "Zenrows does not allow scraping this domain. Retrying or changing "
+            f"options will not help.{tag}",
             status=status,
             code=code,
         )
@@ -258,10 +262,8 @@ def resolve_stealth(
                                ("Premium proxy", premium_proxy)) if v
             )
             raise ToolParameterValidationError(
-                f"Adaptive stealth cannot be combined with {chosen} — Zenrows treats "
-                f"them as mutually exclusive and rejects the request. Either turn "
-                f"adaptive stealth off and keep {chosen}, or leave {chosen} unset and "
-                f"let adaptive stealth escalate when the target needs it."
+                f"Turn off Adaptive stealth, or unset {chosen} — Zenrows rejects "
+                f"them together."
             )
         return True
     return False

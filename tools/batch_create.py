@@ -30,8 +30,8 @@ def _parse_urls(raw: str) -> list[str]:
         raise ToolParameterValidationError("At least one URL is required.")
     if len(candidates) > MAX_TASKS:
         raise ToolParameterValidationError(
-            f"A batch job takes at most {MAX_TASKS} URLs; {len(candidates)} were given. "
-            "Split the list across several jobs."
+            f"Split the list across several jobs — a batch takes at most "
+            f"{MAX_TASKS} URLs and {len(candidates)} were given."
         )
     bad = [u for u in candidates if not u.startswith(("http://", "https://"))]
     if bad:
