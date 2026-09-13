@@ -234,7 +234,12 @@ def as_bool(value: Any) -> bool:
 
 
 def resolve_stealth(
-    stealth_param: object, js_render: bool, premium_proxy: bool, *, tool: str
+    stealth_param: object,
+    js_render: bool,
+    premium_proxy: bool,
+    *,
+    tool: str,
+    implied_browser: str | None = None,
 ) -> bool:
     """Decide whether to send Adaptive Stealth Mode alongside explicit flags.
 
@@ -250,11 +255,21 @@ def resolve_stealth(
         than letting the API return something they cannot act on.
       * stealth off -> manual tier, nothing to resolve.
 
+    `implied_browser` names an option the *tool* turned js_render on for --
+    Screenshot, PDF output, Wait, and so on -- rather than one the user set.
+    It still collides with stealth, but "unset Render JavaScript" is advice
+    nobody can follow when the Render JavaScript toggle they can see is off.
+    Passing the option's label lets the message name the thing they actually
+    chose. Callers must pass the user's own js_render here, not the derived
+    one, or the two cases cannot be told apart.
+
     Returns True when `mode=auto` should be sent.
     """
     explicit = js_render or premium_proxy
     if stealth_param is None:
-        return not explicit
+        # A browser the tool switched on is just as incompatible with
+        # `mode=auto` as one the user asked for, so it suppresses stealth too.
+        return not (explicit or implied_browser)
     if as_bool(stealth_param):
         if explicit:
             chosen = " and ".join(
@@ -264,6 +279,11 @@ def resolve_stealth(
             raise ToolParameterValidationError(
                 f"Turn off Adaptive stealth, or unset {chosen} — Zenrows rejects "
                 f"them together."
+            )
+        if implied_browser:
+            raise ToolParameterValidationError(
+                f"Turn off Adaptive stealth — {implied_browser} needs a browser, "
+                f"and Zenrows rejects that together with adaptive stealth."
             )
         return True
     return False
