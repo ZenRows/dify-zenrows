@@ -21,6 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from utils.errors import (  # noqa: E402
+    ToolInvokeError,
     ToolParameterValidationError,
     as_bool,
     error_code,
@@ -278,6 +279,39 @@ def test_resolve_stealth() -> None:
             check(f"resolve_stealth(explicit on + {label}) raises", False, True)
         except ToolParameterValidationError as exc:
             check(f"resolve_stealth(explicit on + {label}) names it", wanted in str(exc), True)
+
+
+# --- empty body on a 2xx -------------------------------------------------
+# Zenrows occasionally answers 200 with zero bytes: the target served a
+# challenge shell instead of the page. Passing that through as a success is
+# exactly the silent failure this plugin exists to avoid, so client.fetch
+# turns it into an error. Measured at roughly 1 run in 16 against a
+# challenge page, so it is rare enough to slip through manual testing.
+
+def test_empty_body_is_an_error() -> None:
+    from tools import client
+
+    class FakeResponse:
+        def __init__(self, content: bytes) -> None:
+            self.content = content
+            self.text = content.decode()
+            self.status_code = 200
+
+    original = client._sdk_call
+    try:
+        client._sdk_call = lambda *a, **k: FakeResponse(b"")
+        try:
+            client.fetch("k", "https://example.com", {}, action="fetching the page")
+            check("empty 200 raises", False, True)
+        except ToolInvokeError as exc:
+            check("empty 200 names the URL", "https://example.com" in str(exc), True)
+            check("empty 200 says empty", "empty page body" in str(exc), True)
+
+        client._sdk_call = lambda *a, **k: FakeResponse(b"<html>ok</html>")
+        got = client.fetch("k", "https://example.com", {}, action="fetching the page")
+        check("non-empty 200 passes through", got.text, "<html>ok</html>")
+    finally:
+        client._sdk_call = original
 
 
 def main() -> int:
