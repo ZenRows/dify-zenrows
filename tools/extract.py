@@ -85,8 +85,8 @@ class ExtractTool(Tool):
                 ) from exc
             if not isinstance(parsed_selectors, dict) or not parsed_selectors:
                 raise ToolParameterValidationError(
-                    "CSS selectors must be a non-empty JSON object mapping field "
-                    'names to selectors, e.g. {"title":"h1"}.'
+                    "CSS selectors must map field names to selectors, e.g. "
+                    '{"title":"h1"}.'
                 )
 
         if method == "outputs":

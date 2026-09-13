@@ -116,11 +116,9 @@ def fetch(api_key: str, url: str, params: dict[str, Any], *, action: str) -> req
     raise_for_zenrows_error(response.status_code, response.text, action=action)
     if not response.content:
         raise ToolInvokeError(
-            f"Zenrows returned an empty page body for {url} (HTTP "
-            f"{response.status_code}). The target most likely served a "
-            "challenge or an empty shell rather than the page. Retry — this "
-            "is usually transient — or turn on Render JavaScript if the "
-            "content is loaded client-side."
+            f"Retry — Zenrows returned an empty page body for {url} (HTTP "
+            f"{response.status_code}). Turn on Render JavaScript if the page "
+            "builds its content client-side."
         )
     return response
 

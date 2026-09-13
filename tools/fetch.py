@@ -95,9 +95,8 @@ class FetchTool(Tool):
         # naming both fields rather than a 422 they have to decode.
         if wait is not None and wait_for:
             raise ToolParameterValidationError(
-                "Wait (ms) and Wait for selector cannot both be set — the API rejects "
-                "the combination. Use Wait for a fixed delay, or Wait for selector to "
-                "wait until an element appears."
+                "Set Wait (ms) or Wait for selector, not both — the API rejects "
+                "the pair."
             )
 
         # These are all browser-side features: without a browser the API
