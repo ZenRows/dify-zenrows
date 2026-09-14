@@ -268,6 +268,36 @@ def test_resolve_stealth() -> None:
             expected,
         )
 
+    # A browser the tool switched on (Screenshot, PDF, Wait...) collides with
+    # stealth just as hard, but the user never touched Render JavaScript, so
+    # the message has to name the option they did choose. Live testing found
+    # all four of these telling people to "unset Render JavaScript" when that
+    # toggle was visibly off.
+    for label in ("Screenshot", "PDF output", "Wait (ms)", "Wait for selector"):
+        # unset stealth + an implied browser -> stealth silently off
+        check(
+            f"resolve_stealth(unset + implied {label})",
+            resolve_stealth(None, False, False, tool="Fetch", implied_browser=label),
+            False,
+        )
+        # stealth explicitly on + an implied browser -> name the real option
+        try:
+            resolve_stealth(True, False, False, tool="Fetch", implied_browser=label)
+            check(f"resolve_stealth(on + implied {label}) raises", False, True)
+        except ToolParameterValidationError as exc:
+            check(f"resolve_stealth(on + implied {label}) names it", label in str(exc), True)
+            check(
+                f"resolve_stealth(on + implied {label}) does not blame js_render",
+                "unset Render JavaScript" not in str(exc),
+                True,
+            )
+        # stealth off + an implied browser -> nothing to resolve
+        check(
+            f"resolve_stealth(off + implied {label})",
+            resolve_stealth(False, False, False, tool="Fetch", implied_browser=label),
+            False,
+        )
+
     # Explicitly asking for both must name both fields, not fail silently.
     for label, js, pp, wanted in [
         ("js_render", True, False, "Render JavaScript"),

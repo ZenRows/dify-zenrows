@@ -100,20 +100,32 @@ class FetchTool(Tool):
             )
 
         # These are all browser-side features: without a browser the API
-        # silently ignores them, which looks like a plugin bug. Turn js_render
-        # on rather than returning something the user did not ask for. (Adaptive
-        # stealth also satisfies the API's requirement, but it can decline to
-        # escalate, so do not rely on it to supply the browser.)
-        # `pdf` belongs on this list too: the API answers REQS004 for a PDF
-        # without a browser, which reads as a plugin bug rather than a missing
-        # toggle. It was the one browser-dependent option not covered here.
-        if (
-            screenshot
-            or wait_for
-            or js_instructions
-            or wait is not None
-            or response_type == "pdf"
-        ):
+        # silently ignores them, or answers REQS004 for a PDF, which reads as a
+        # plugin bug rather than a missing toggle. Turn js_render on rather than
+        # returning something the user did not ask for. (Adaptive stealth also
+        # satisfies the API's requirement, but it can decline to escalate, so do
+        # not rely on it to supply the browser.)
+        #
+        # Keep the user's own js_render separate from the one inferred here.
+        # resolve_stealth reports the conflict differently for the two, because
+        # telling someone to "unset Render JavaScript" is useless when the
+        # toggle they can see is already off and the plugin set it.
+        implied_browser = next(
+            (
+                label
+                for label, wanted in (
+                    ("Screenshot", screenshot),
+                    ("PDF output", response_type == "pdf"),
+                    ("Wait for selector", bool(wait_for)),
+                    ("Browser instructions", bool(js_instructions)),
+                    ("Wait (ms)", wait is not None),
+                )
+                if wanted
+            ),
+            None,
+        )
+        user_js_render = js_render
+        if implied_browser:
             js_render = True
 
         premium_proxy = as_bool(tool_parameters.get("premium_proxy"))
@@ -133,9 +145,10 @@ class FetchTool(Tool):
         # applies, and says so when the request is contradictory.
         if resolve_stealth(
             tool_parameters.get("adaptive_stealth"),
-            js_render,
+            user_js_render,
             premium_proxy,
             tool="Fetch",
+            implied_browser=implied_browser,
         ):
             params["mode"] = "auto"
 
