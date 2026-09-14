@@ -5,7 +5,7 @@ from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
 from utils.batch import get_job, run_summary
-from utils.errors import PASSTHROUGH_ERRORS, ToolInvokeError, require_param
+from utils.errors import PASSTHROUGH_ERRORS, ToolInvokeError, redact, require_param
 
 
 class BatchStatusTool(Tool):
@@ -49,4 +49,4 @@ class BatchStatusTool(Tool):
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:
-            raise ToolInvokeError(f"Unexpected error while checking the batch job: {exc}") from exc
+            raise ToolInvokeError(f"Unexpected error while checking the batch job: {redact(exc)}") from exc

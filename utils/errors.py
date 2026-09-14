@@ -22,7 +22,30 @@ The distinctions that matter:
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
+
+
+# The API key travels to Zenrows as a query parameter, which means a transport
+# failure carries it: `str(requests.ConnectionError)` embeds the full URL,
+# apikey and all. Any message that interpolates an exception therefore leaks the
+# credential into the workflow, its run log, and anywhere Dify surfaces a node
+# error. Reproduced against a real connection failure before this was written.
+_SECRET_PATTERNS = (
+    re.compile(r"((?:apikey|api_key|api-key|token)=)[^&\s'\"]+", re.IGNORECASE),
+    re.compile(
+        r"((?:x-api-key|authorization)['\"]?\s*[:=]\s*['\"]?(?:bearer\s+|token\s+)?)[^,\s'\"}]+",
+        re.IGNORECASE,
+    ),
+)
+
+
+def redact(text: object) -> str:
+    """Strip credentials out of anything on its way to a user-facing message."""
+    out = str(text)
+    for pattern in _SECRET_PATTERNS:
+        out = pattern.sub(r"\1***", out)
+    return out
 
 
 class ToolInvokeError(Exception):
@@ -132,7 +155,7 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
         return
 
     code = error_code(body)
-    detail = error_detail(body) or (body[:240] if body else "")
+    detail = redact(error_detail(body) or (body[:240] if body else ""))
     # Where we have a better sentence than the API's, the raw prose only
     # repeats it at length -- Dify already prefixes every error with its own
     # boilerplate, so the useful part has to come early. Keep the code, which

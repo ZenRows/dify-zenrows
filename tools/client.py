@@ -25,7 +25,7 @@ from typing import Any
 import requests
 from zenrows import ZenRowsClient
 
-from utils.errors import ToolInvokeError, raise_for_zenrows_error
+from utils.errors import ToolInvokeError, raise_for_zenrows_error, redact
 
 SUBSCRIPTION_URL = "https://api.zenrows.com/v1/subscriptions/self/details"
 
@@ -71,7 +71,7 @@ def _request(
             f"Timed out after {timeout}s while {action}."
         ) from exc
     except requests.RequestException as exc:
-        raise ToolInvokeError(f"Could not reach Zenrows while {action}: {exc}") from exc
+        raise ToolInvokeError(f"Could not reach Zenrows while {action}: {redact(exc)}") from exc
 
     raise_for_zenrows_error(response.status_code, response.text, action=action)
     return response
@@ -98,7 +98,7 @@ def _sdk_call(api_key: str, url: str, params: dict[str, Any], *, action: str) ->
     except requests.Timeout as exc:
         raise ToolInvokeError(f"Timed out after {DEFAULT_TIMEOUT}s while {action}.") from exc
     except requests.RequestException as exc:
-        raise ToolInvokeError(f"Could not reach Zenrows while {action}: {exc}") from exc
+        raise ToolInvokeError(f"Could not reach Zenrows while {action}: {redact(exc)}") from exc
 
 
 def fetch(api_key: str, url: str, params: dict[str, Any], *, action: str) -> requests.Response:
