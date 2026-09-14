@@ -14,6 +14,7 @@ from utils.errors import (
     as_bool,
     is_extract_domain_not_enabled,
     raise_for_zenrows_error,
+    redact,
     require_param,
     validate_url,
 )
@@ -189,4 +190,4 @@ class ExtractTool(Tool):
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:
-            raise ToolInvokeError(f"Unexpected error while extracting data: {exc}") from exc
+            raise ToolInvokeError(f"Unexpected error while extracting data: {redact(exc)}") from exc

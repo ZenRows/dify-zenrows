@@ -4,7 +4,7 @@ from dify_plugin import ToolProvider
 from dify_plugin.errors.tool import ToolProviderCredentialValidationError
 
 from tools.client import verify_api_key
-from utils.errors import ZenrowsApiError
+from utils.errors import ZenrowsApiError, redact
 
 
 class ZenrowsProvider(ToolProvider):
@@ -28,5 +28,5 @@ class ZenrowsProvider(ToolProvider):
             raise ToolProviderCredentialValidationError(str(exc)) from exc
         except Exception as exc:
             raise ToolProviderCredentialValidationError(
-                f"Could not verify the API key: {exc}"
+                f"Could not verify the API key: {redact(exc)}"
             ) from exc

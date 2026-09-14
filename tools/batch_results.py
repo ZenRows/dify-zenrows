@@ -18,6 +18,7 @@ from utils.errors import (
     ToolInvokeError,
     ToolParameterValidationError,
     as_bool,
+    redact,
     require_param,
 )
 
@@ -156,4 +157,4 @@ class BatchResultsTool(Tool):
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:
-            raise ToolInvokeError(f"Unexpected error while collecting batch results: {exc}") from exc
+            raise ToolInvokeError(f"Unexpected error while collecting batch results: {redact(exc)}") from exc

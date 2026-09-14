@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from utils.errors import (  # noqa: E402
     ToolInvokeError,
+    redact,
     ToolParameterValidationError,
     as_bool,
     error_code,
@@ -342,6 +343,40 @@ def test_empty_body_is_an_error() -> None:
         check("non-empty 200 passes through", got.text, "<html>ok</html>")
     finally:
         client._sdk_call = original
+
+
+# --- credentials must never reach a user-facing message -------------------
+# The key travels to Zenrows as a query parameter, so a connection failure
+# carries it: str(requests.ConnectionError) embeds the whole URL. Verified
+# against a real failure -- "Max retries exceeded with url: /v1/?apikey=..."
+# -- which the plugin used to interpolate straight into a workflow error.
+
+def test_redact() -> None:
+    KEY = "sk_live_0123456789abcdef"
+    leaks = [
+        f"HTTPSConnectionPool(host='api.zenrows.com', port=443): Max retries "
+        f"exceeded with url: /v1/?apikey={KEY}&url=https%3A%2F%2Fexample.com",
+        f"https://api.zenrows.com/v1/?url=x&apikey={KEY}",
+        f"api_key={KEY}&other=1",
+        f"{{'X-API-Key': '{KEY}'}}",
+        f"Authorization: Bearer {KEY}",
+    ]
+    for raw in leaks:
+        cleaned = redact(raw)
+        check(f"redact removes the key from {raw[:38]!r}", KEY in cleaned, False)
+        check(f"redact leaves something behind for {raw[:38]!r}", len(cleaned) > 0, True)
+
+    # A message with no credential in it must survive untouched.
+    plain = "Timed out after 90s while fetching the page."
+    check("redact leaves clean text alone", redact(plain), plain)
+
+    # Every call site that interpolates an exception must go through it.
+    import pathlib as _p
+    for rel in ("tools/client.py", "tools/fetch.py", "tools/extract.py",
+                "tools/batch_create.py", "tools/batch_results.py",
+                "tools/batch_status.py", "provider/zenrows.py"):
+        body = (_p.Path(__file__).resolve().parents[1] / rel).read_text()
+        check(f"{rel} never interpolates a bare exception", "{exc}" in body, False)
 
 
 def main() -> int:
