@@ -39,6 +39,10 @@ the page. Use **Batch** when you have more URLs than one request should carry.
 wherever your Dify instance runs. No inbound connections and no local services
 are required.
 
+### Example workflow
+
+[`examples/summarize-any-page`](examples/summarize-any-page) is an importable Dify workflow (DSL): a URL goes in, Fetch returns the page as Markdown, an LLM node summarizes it.
+
 ### Usage
 
 Add a Zenrows node to a workflow and pass it a URL. The tool returns the page

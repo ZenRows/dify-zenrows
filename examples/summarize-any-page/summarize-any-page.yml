@@ -1,0 +1,646 @@
+app:
+  description: 'Takes a URL, fetches the page as Markdown with the Zenrows plugin, and summarizes it with an LLM node.'
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: Summarize any page with Zenrows
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/openai:1.0.5@51583313a5988d5dca405063831ffeeacdc1f2e95f32a8c10b4c281ceef39ebb
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: zenrows/zenrows:0.1.0@bea8314e1b9dc68d0634e10525a8c9328e70058250d61dfe157d68e1773e984b
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        knowledge_file_size_limit: 15
+        single_chunk_attachment_limit: 10
+        skill_file_size_limit: 50
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: 1790884214238--1790884290658-target
+      source: '1790884214238'
+      sourceHandle: source
+      target: '1790884290658'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: llm
+      id: 1790884290658--1790884426153-target
+      source: '1790884290658'
+      sourceHandle: source
+      target: '1790884426153'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: 1790884426153--1790884470503-target
+      source: '1790884426153'
+      sourceHandle: source
+      target: '1790884470503'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: User Input
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: URL
+          max_length: 256
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: url
+      height: 109
+      id: '1790884214238'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: The full URL of the page to fetch, including https://.
+            ja_JP: The full URL of the page to fetch, including https://.
+            pt_BR: The full URL of the page to fetch, including https://.
+            zh_Hans: The full URL of the page to fetch, including https://.
+          input_schema: null
+          label:
+            en_US: URL
+            ja_JP: URL
+            pt_BR: URL
+            zh_Hans: URL
+          llm_description: The absolute URL of the page to retrieve. Must start with
+            http:// or https://.
+          max: null
+          min: null
+          multiple: false
+          name: url
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: markdown
+          form: llm
+          human_description:
+            en_US: Format of the returned content. HTML is the raw page; markdown
+              and plaintext are easier for a model to read.
+            ja_JP: Format of the returned content. HTML is the raw page; markdown
+              and plaintext are easier for a model to read.
+            pt_BR: Format of the returned content. HTML is the raw page; markdown
+              and plaintext are easier for a model to read.
+            zh_Hans: Format of the returned content. HTML is the raw page; markdown
+              and plaintext are easier for a model to read.
+          input_schema: null
+          label:
+            en_US: Response format
+            ja_JP: Response format
+            pt_BR: Response format
+            zh_Hans: Response format
+          llm_description: 'Output format. Use "markdown" or "plaintext" when passing
+            the result to a language model, "html" when you need the raw markup, "pdf"
+            to render the page as a PDF.
+
+            '
+          max: null
+          min: null
+          multiple: false
+          name: response_type
+          options:
+          - icon: ''
+            label:
+              en_US: HTML (raw)
+              ja_JP: HTML (raw)
+              pt_BR: HTML (raw)
+              zh_Hans: HTML (raw)
+            value: html
+          - icon: ''
+            label:
+              en_US: Markdown
+              ja_JP: Markdown
+              pt_BR: Markdown
+              zh_Hans: Markdown
+            value: markdown
+          - icon: ''
+            label:
+              en_US: Plain text
+              ja_JP: Plain text
+              pt_BR: Plain text
+              zh_Hans: Plain text
+            value: plaintext
+          - icon: ''
+            label:
+              en_US: PDF
+              ja_JP: PDF
+              pt_BR: PDF
+              zh_Hans: PDF
+            value: pdf
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: select
+        - auto_generate: null
+          default: false
+          form: llm
+          human_description:
+            en_US: Load the page in a real browser so JavaScript-generated content
+              is included. Slower and costs more credits.
+            ja_JP: Load the page in a real browser so JavaScript-generated content
+              is included. Slower and costs more credits.
+            pt_BR: Load the page in a real browser so JavaScript-generated content
+              is included. Slower and costs more credits.
+            zh_Hans: Load the page in a real browser so JavaScript-generated content
+              is included. Slower and costs more credits.
+          input_schema: null
+          label:
+            en_US: Render JavaScript
+            ja_JP: Render JavaScript
+            pt_BR: Render JavaScript
+            zh_Hans: Render JavaScript
+          llm_description: Set true when the page content is rendered by JavaScript
+            and would be missing from the raw HTML.
+          max: null
+          min: null
+          multiple: false
+          name: js_render
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: boolean
+        - auto_generate: null
+          default: true
+          form: form
+          human_description:
+            en_US: Let Zenrows escalate to JavaScript rendering or premium proxies
+              automatically when a site needs them. On by default. Turn it off to
+              control those yourself; the fetch may then fail on protected sites.
+            ja_JP: Let Zenrows escalate to JavaScript rendering or premium proxies
+              automatically when a site needs them. On by default. Turn it off to
+              control those yourself; the fetch may then fail on protected sites.
+            pt_BR: Let Zenrows escalate to JavaScript rendering or premium proxies
+              automatically when a site needs them. On by default. Turn it off to
+              control those yourself; the fetch may then fail on protected sites.
+            zh_Hans: Let Zenrows escalate to JavaScript rendering or premium proxies
+              automatically when a site needs them. On by default. Turn it off to
+              control those yourself; the fetch may then fail on protected sites.
+          input_schema: null
+          label:
+            en_US: Adaptive stealth
+            ja_JP: Adaptive stealth
+            pt_BR: Adaptive stealth
+            zh_Hans: Adaptive stealth
+          llm_description: 'Whether Zenrows may automatically escalate to JavaScript
+            rendering or premium proxies when the target site requires them. Leave
+            on (the default) unless the caller wants to control those settings manually
+            — with it off, protected sites fail instead of being escalated. Escalation
+            costs more credits per request.
+
+            '
+          max: null
+          min: null
+          multiple: false
+          name: adaptive_stealth
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: boolean
+        - auto_generate: null
+          default: false
+          form: llm
+          human_description:
+            en_US: Route the request through residential IPs. Use for sites with strong
+              anti-bot protection. Costs more credits.
+            ja_JP: Route the request through residential IPs. Use for sites with strong
+              anti-bot protection. Costs more credits.
+            pt_BR: Route the request through residential IPs. Use for sites with strong
+              anti-bot protection. Costs more credits.
+            zh_Hans: Route the request through residential IPs. Use for sites with
+              strong anti-bot protection. Costs more credits.
+          input_schema: null
+          label:
+            en_US: Premium proxy
+            ja_JP: Premium proxy
+            pt_BR: Premium proxy
+            zh_Hans: Premium proxy
+          llm_description: Set true when a normal request is blocked by anti-bot protection.
+            Costs more credits, so leave false unless needed.
+          max: null
+          min: null
+          multiple: false
+          name: premium_proxy
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: boolean
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Two-letter country code to geolocate the request from, for example
+              us or de. Requires premium proxy.
+            ja_JP: Two-letter country code to geolocate the request from, for example
+              us or de. Requires premium proxy.
+            pt_BR: Two-letter country code to geolocate the request from, for example
+              us or de. Requires premium proxy.
+            zh_Hans: Two-letter country code to geolocate the request from, for example
+              us or de. Requires premium proxy.
+          input_schema: null
+          label:
+            en_US: Proxy country
+            ja_JP: Proxy country
+            pt_BR: Proxy country
+            zh_Hans: Proxy country
+          llm_description: Optional two-letter ISO country code (e.g. "us", "gb",
+            "de") to fetch the page from that country. Only applies when premium_proxy
+            is enabled.
+          max: null
+          min: null
+          multiple: false
+          name: proxy_country
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: CSS selector to wait for before capturing the page. Requires JavaScript
+              rendering.
+            ja_JP: CSS selector to wait for before capturing the page. Requires JavaScript
+              rendering.
+            pt_BR: CSS selector to wait for before capturing the page. Requires JavaScript
+              rendering.
+            zh_Hans: CSS selector to wait for before capturing the page. Requires
+              JavaScript rendering.
+          input_schema: null
+          label:
+            en_US: Wait for selector
+            ja_JP: Wait for selector
+            pt_BR: Wait for selector
+            zh_Hans: Wait for selector
+          llm_description: Optional CSS selector the page must contain before the
+            content is captured. Only applies when js_render is enabled.
+          max: null
+          min: null
+          multiple: false
+          name: wait_for
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Fixed delay in milliseconds before the page is captured, for example
+              2000. Cannot be combined with Wait for selector. Requires JavaScript
+              rendering or adaptive stealth.
+            ja_JP: Fixed delay in milliseconds before the page is captured, for example
+              2000. Cannot be combined with Wait for selector. Requires JavaScript
+              rendering or adaptive stealth.
+            pt_BR: Fixed delay in milliseconds before the page is captured, for example
+              2000. Cannot be combined with Wait for selector. Requires JavaScript
+              rendering or adaptive stealth.
+            zh_Hans: Fixed delay in milliseconds before the page is captured, for
+              example 2000. Cannot be combined with Wait for selector. Requires JavaScript
+              rendering or adaptive stealth.
+          input_schema: null
+          label:
+            en_US: Wait (ms)
+            ja_JP: Wait (ms)
+            pt_BR: Wait (ms)
+            zh_Hans: Wait (ms)
+          llm_description: 'Fixed delay in MILLISECONDS to wait before capturing the
+            page, e.g. 2000 for two seconds. Use when content appears after a short
+            delay and no stable CSS selector exists; prefer wait_for when one does.
+            Mutually exclusive with wait_for — setting both is rejected. Only applies
+            when JavaScript rendering or adaptive stealth is on.
+
+            '
+          max: null
+          min: null
+          multiple: false
+          name: wait
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: 'JSON array of browser actions to run before the page is captured,
+              for example [{"click": ".load-more"}, {"wait": 500}]. Requires JavaScript
+              rendering.'
+            ja_JP: 'JSON array of browser actions to run before the page is captured,
+              for example [{"click": ".load-more"}, {"wait": 500}]. Requires JavaScript
+              rendering.'
+            pt_BR: 'JSON array of browser actions to run before the page is captured,
+              for example [{"click": ".load-more"}, {"wait": 500}]. Requires JavaScript
+              rendering.'
+            zh_Hans: 'JSON array of browser actions to run before the page is captured,
+              for example [{"click": ".load-more"}, {"wait": 500}]. Requires JavaScript
+              rendering.'
+          input_schema: null
+          label:
+            en_US: JavaScript instructions
+            ja_JP: JavaScript instructions
+            pt_BR: JavaScript instructions
+            zh_Hans: JavaScript instructions
+          llm_description: 'A JSON array of browser actions performed before the page
+            is captured, for example [{"click": ".load-more"}, {"wait": 500}, {"scroll_y":
+            1500}]. Use to dismiss a banner, expand content or paginate before reading
+            the page. Must be valid JSON — an array of single-key objects. Requires
+            JavaScript rendering, which is enabled automatically when this is set.
+
+            '
+          max: null
+          min: null
+          multiple: false
+          name: js_instructions
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: false
+          form: llm
+          human_description:
+            en_US: Return a screenshot of the page instead of its content. Requires
+              JavaScript rendering.
+            ja_JP: Return a screenshot of the page instead of its content. Requires
+              JavaScript rendering.
+            pt_BR: Return a screenshot of the page instead of its content. Requires
+              JavaScript rendering.
+            zh_Hans: Return a screenshot of the page instead of its content. Requires
+              JavaScript rendering.
+          input_schema: null
+          label:
+            en_US: Screenshot
+            ja_JP: Screenshot
+            pt_BR: Screenshot
+            zh_Hans: Screenshot
+          llm_description: Set true to capture an image of the page rather than its
+            text content. Only applies when js_render is enabled.
+          max: null
+          min: null
+          multiple: false
+          name: screenshot
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: boolean
+        params:
+          adaptive_stealth: ''
+          js_instructions: ''
+          js_render: ''
+          premium_proxy: ''
+          proxy_country: ''
+          response_type: ''
+          screenshot: ''
+          url: ''
+          wait: ''
+          wait_for: ''
+        plugin_id: zenrows/zenrows
+        plugin_unique_identifier: zenrows/zenrows:0.1.0@bea8314e1b9dc68d0634e10525a8c9328e70058250d61dfe157d68e1773e984b
+        provider_icon: https://marketplace.dify.ai/api/v1/plugins/zenrows/zenrows/icon
+        provider_id: zenrows/zenrows/zenrows
+        provider_name: zenrows/zenrows/zenrows
+        provider_show_name: Zenrows
+        provider_type: builtin
+        selected: false
+        title: Fetch
+        tool_configurations:
+          adaptive_stealth:
+            type: constant
+            value: true
+        tool_description: Fetch any web page through Zenrows, bypassing anti-bot protection,
+          JavaScript rendering and geo-restrictions. Returns the page content.
+        tool_label: Fetch
+        tool_name: fetch
+        tool_node_version: '2'
+        tool_parameters:
+          js_instructions:
+            type: mixed
+            value: null
+          js_render:
+            type: constant
+            value: false
+          premium_proxy:
+            type: constant
+            value: false
+          proxy_country:
+            type: mixed
+            value: null
+          response_type:
+            type: constant
+            value: markdown
+          screenshot:
+            type: constant
+            value: false
+          url:
+            type: mixed
+            value: '{{#1790884214238.url#}}'
+          wait:
+            type: constant
+            value: null
+          wait_for:
+            type: mixed
+            value: null
+        type: tool
+      height: 88
+      id: '1790884290658'
+      position:
+        x: 382
+        y: 282
+      positionAbsolute:
+        x: 382
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-5
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: e839b001-e80e-4106-b8a2-5e060b10c70f
+          role: system
+          text: 'Summarize the following web page in five bullet points. Use only
+            what the page says.
+
+
+            {{#1790884290658.text#}}'
+        selected: false
+        title: LLM
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1790884426153'
+      position:
+        x: 684
+        y: 282
+      positionAbsolute:
+        x: 684
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        outputs:
+        - value_selector:
+          - '1790884426153'
+          - text
+          value_type: string
+          variable: summary
+        selected: false
+        title: Output
+        type: end
+      height: 88
+      id: '1790884470503'
+      position:
+        x: 986
+        y: 282
+      positionAbsolute:
+        x: 986
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    viewport:
+      x: 98.5
+      y: 79.33333333333331
+      zoom: 0.8333333333333334
+  rag_pipeline_variables: []
