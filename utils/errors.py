@@ -135,13 +135,18 @@ def is_domain_scoped_extract_restriction(body: str) -> bool:
 
 
 def is_extract_domain_not_enabled(status: int, body: str) -> bool:
-    """True only for the recoverable 402 — the Extract beta gate on a domain.
+    """True only when Extract isn't available for this domain yet.
 
     Callers use this to decide whether falling back to `autoparse` is safe.
-    Deliberately narrow: a 402 without `AUTH010` is a credits failure, and an
-    AUTH010 that is not domain-scoped is a plan restriction the user must see.
+    Two responses qualify: 403 `REQS007` (the domain hasn't been prepared for
+    Extract) and the older domain-scoped 402 `AUTH010`. Deliberately narrow: a
+    402 without `AUTH010` is a credits failure, and an AUTH010 that is not
+    domain-scoped is a plan restriction the user must see.
     """
-    if status != 402 or error_code(body) != "AUTH010":
+    code = error_code(body)
+    if status == 403 and code == "REQS007":
+        return True
+    if status != 402 or code != "AUTH010":
         return False
     return is_domain_scoped_extract_restriction(body)
 
@@ -161,6 +166,15 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
     # boilerplate, so the useful part has to come early. Keep the code, which
     # is what support and the docs are searched by, and drop the duplicate.
     tag = f" ({code})" if code else ""
+
+    if status == 403 and code == "REQS007":
+        # A 403, but not an auth failure: Extract hasn't prepared this domain.
+        raise ZenrowsApiError(
+            "Switch this tool to autoparse — Extract has not been prepared for "
+            f"this domain yet.{tag}",
+            status=status,
+            code=code,
+        )
 
     if status in (401, 403):
         raise ZenrowsApiError(

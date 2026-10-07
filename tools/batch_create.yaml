@@ -58,6 +58,20 @@ parameters:
         label:
           en_US: Plain text
     form: llm
+  - name: adaptive_stealth
+    type: boolean
+    required: false
+    default: true
+    label:
+      en_US: Adaptive stealth
+    human_description:
+      en_US: Let Zenrows escalate each URL to JavaScript rendering or premium proxies automatically when its site needs them. On by default. Turn it off to control those yourself; protected sites may then fail.
+    llm_description: >
+      Whether Zenrows may automatically escalate each URL to JavaScript rendering or
+      premium proxies when its site requires them. Leave on (the default) unless the
+      caller wants to control those settings manually — with it off, protected sites
+      fail instead of being escalated. Escalation costs more credits per URL.
+    form: form
   - name: js_render
     type: boolean
     required: false

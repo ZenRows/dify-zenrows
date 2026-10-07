@@ -155,10 +155,13 @@ class FetchTool(Tool):
 
         proxy_country = (tool_parameters.get("proxy_country") or "").strip().lower()
         if proxy_country:
-            # proxy_country only takes effect with premium_proxy; setting one
-            # without the other is a silent no-op, so enable it.
-            params["premium_proxy"] = True
             params["proxy_country"] = proxy_country
+            # Adaptive Stealth Mode geolocates on its own, and adding
+            # premium_proxy next to `mode=auto` makes the API reject the
+            # request (REQS004). Outside it, the API only accepts a country
+            # together with premium_proxy, so enable it.
+            if params.get("mode") != "auto":
+                params["premium_proxy"] = True
 
         if wait_for:
             params["wait_for"] = wait_for

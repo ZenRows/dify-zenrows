@@ -88,8 +88,8 @@ parameters:
     label:
       en_US: Proxy country
     human_description:
-      en_US: Two-letter country code to geolocate the request from, for example us or de. Requires premium proxy.
-    llm_description: Optional two-letter ISO country code (e.g. "us", "gb", "de") to fetch the page from that country. Only applies when premium_proxy is enabled.
+      en_US: Two-letter country code to geolocate the request from, for example us or de. Works with Adaptive stealth; with it off, premium proxy is turned on for you.
+    llm_description: Optional two-letter ISO country code (e.g. "us", "gb", "de") to fetch the page from that country.
     form: llm
   - name: wait_for
     type: string
