@@ -379,6 +379,135 @@ def test_redact() -> None:
         check(f"{rel} never interpolates a bare exception", "{exc}" in body, False)
 
 
+# --- REQS007: Extract not prepared for the domain ------------------------
+# Unprepared domains moved from 402 AUTH010 to 403 REQS007. The fallback only
+# knew AUTH010, so it stopped firing, and the 403 was reported as a bad API key.
+
+def test_reqs007_falls_back_and_is_not_an_auth_error() -> None:
+    from utils.errors import ZenrowsApiError, raise_for_zenrows_error
+
+    body = envelope("REQS007", "Extract has not been prepared for example.com yet.", 403)
+    check("REQS007 falls back", is_extract_domain_not_enabled(403, body), True)
+    check("REQS007 on a non-403 does not", is_extract_domain_not_enabled(400, body), False)
+    check("other 403s do not",
+          is_extract_domain_not_enabled(403, envelope("AUTH002", "bad key", 403)), False)
+    try:
+        raise_for_zenrows_error(403, body, action="extracting data")
+        msg = ""
+    except ZenrowsApiError as e:
+        msg = str(e)
+    check("REQS007 message points to autoparse", "autoparse" in msg, True)
+    check("REQS007 message is not about the API key", "API key" in msg, False)
+
+
+# --- what each tool actually sends --------------------------------------
+# The tools are invoked with the HTTP layer swapped out, so these pin the
+# request parameters themselves, not a re-implementation of the logic.
+
+class _Resp:
+    status_code = 200
+    headers: dict = {}
+    text = "page"
+    content = b"page"
+
+    def json(self) -> dict:
+        return {}
+
+
+def _run_fetch(params: dict) -> dict:
+    import types
+    import tools.fetch as mod
+
+    sent: dict = {}
+
+    def fake_fetch(api_key, url, p, *, action):
+        sent.update(p)
+        return _Resp()
+
+    original = mod.fetch
+    mod.fetch = fake_fetch
+    try:
+        tool = mod.FetchTool.__new__(mod.FetchTool)
+        tool.runtime = types.SimpleNamespace(credentials={"api_key": "k"})
+        tool.create_text_message = lambda *a, **k: None
+        tool.create_json_message = lambda *a, **k: None
+        tool.create_blob_message = lambda *a, **k: None
+        list(tool._invoke({"url": "https://example.com", **params}))
+    finally:
+        mod.fetch = original
+    return sent
+
+
+def test_fetch_proxy_country_with_adaptive_stealth() -> None:
+    # mode=auto + premium_proxy is rejected by the API (REQS004).
+    sent = _run_fetch({"proxy_country": "US"})
+    check("country under stealth keeps mode=auto", sent.get("mode"), "auto")
+    check("country under stealth sends no premium_proxy", "premium_proxy" in sent, False)
+    check("country is sent", sent.get("proxy_country"), "us")
+
+    sent = _run_fetch({"proxy_country": "de", "adaptive_stealth": False})
+    check("country without stealth enables premium_proxy", sent.get("premium_proxy"), True)
+    check("country without stealth sends no mode", "mode" in sent, False)
+
+    sent = _run_fetch({"proxy_country": "de", "js_render": True})
+    check("country + js_render enables premium_proxy", sent.get("premium_proxy"), True)
+    check("country + js_render sends no mode", "mode" in sent, False)
+
+
+def _run_batch_create(params: dict) -> dict | None:
+    import contextlib
+    import types
+    import tools.batch_create as mod
+
+    captured: dict = {}
+
+    class FakeClient:
+        def submit_regular(self, urls, zenrows_params):
+            captured["zenrows_params"] = zenrows_params
+            return types.SimpleNamespace(job_id="j1", submit_response=None)
+
+    @contextlib.contextmanager
+    def fake_batch_client(api_key):
+        yield FakeClient()
+
+    originals = (mod.batch_client, mod.run_summary)
+    mod.batch_client = fake_batch_client
+    mod.run_summary = lambda *a, **k: {}
+    try:
+        tool = mod.BatchCreateTool.__new__(mod.BatchCreateTool)
+        tool.runtime = types.SimpleNamespace(credentials={"api_key": "k"})
+        tool.create_text_message = lambda *a, **k: None
+        tool.create_json_message = lambda *a, **k: None
+        try:
+            list(tool._invoke({"urls": "https://a.com\nhttps://b.com", **params}))
+        except ToolParameterValidationError:
+            raise
+        except Exception:
+            pass  # only the submitted params matter here
+    finally:
+        mod.batch_client, mod.run_summary = originals
+    return captured.get("zenrows_params")
+
+
+def test_batch_create_adaptive_stealth_default() -> None:
+    zp = _run_batch_create({}) or {}
+    check("batch defaults to mode=auto", zp.get("mode"), "auto")
+
+    zp = _run_batch_create({"js_render": True}) or {}
+    check("batch js_render drops mode", "mode" in zp, False)
+    check("batch js_render is sent", zp.get("js_render"), True)
+
+    zp = _run_batch_create({"adaptive_stealth": "false"}) or {}
+    check("batch stealth off sends no mode", "mode" in zp, False)
+
+    try:
+        _run_batch_create({"adaptive_stealth": True, "premium_proxy": True})
+        conflict = False
+    except ToolParameterValidationError:
+        conflict = True
+    check("batch stealth on + premium_proxy is a conflict", conflict, True)
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for test in tests:

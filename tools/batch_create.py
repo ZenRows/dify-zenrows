@@ -15,6 +15,7 @@ from utils.errors import (
     as_bool,
     redact,
     require_param,
+    resolve_stealth,
 )
 
 # The API accepts 1-1000 tasks per job and rejects the whole submission
@@ -54,10 +55,23 @@ class BatchCreateTool(Tool):
         response_type = (tool_parameters.get("response_type") or "markdown").strip().lower()
         if response_type in RESPONSE_TYPES:
             zenrows_params["response_type"] = RESPONSE_TYPES[response_type]
-        if as_bool(tool_parameters.get("js_render")):
+        js_render = as_bool(tool_parameters.get("js_render"))
+        premium_proxy = as_bool(tool_parameters.get("premium_proxy"))
+        if js_render:
             zenrows_params["js_render"] = True
-        if as_bool(tool_parameters.get("premium_proxy")):
+        if premium_proxy:
             zenrows_params["premium_proxy"] = True
+        # Adaptive Stealth Mode, on by default like Fetch and Extract: without
+        # it a site that needs js_render or premium_proxy fails with REQS002.
+        # Every task shares these job-level params, so job-level `mode=auto`
+        # never collides with a per-task flag.
+        if resolve_stealth(
+            tool_parameters.get("adaptive_stealth"),
+            js_render,
+            premium_proxy,
+            tool="Batch Create",
+        ):
+            zenrows_params["mode"] = "auto"
 
         api_key = str(self.runtime.credentials.get("api_key", "")).strip()
 
