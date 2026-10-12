@@ -8,11 +8,10 @@ the packaged `.difypkg` — it is not part of the published plugin.
 A Dify Tool plugin wrapping the Zenrows API. Five tools: Fetch, Extract, and
 Batch create / status / results.
 
-It talks to the REST API directly rather than using the `zenrows` Python SDK.
-That is not a preference — Extract and Batch exist on the SDK's `main` but were
-never published, so PyPI still serves 1.4.0 from Nov 2024. Every HTTP call is
-contained in `tools/client.py` so the swap is one file when the SDK ships.
-Tracked in ACT-1598.
+Batch goes through the `zenrows` Python SDK (`ZenRowsBatchClient`, requires
+`zenrows>=1.4.1`). Fetch and Extract still call the REST API directly; every
+HTTP call for them is contained in `tools/client.py`, so moving them to the
+SDK is a one-file change. Tracked in ACT-1598.
 
 ## Code layout
 
