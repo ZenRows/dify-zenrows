@@ -154,6 +154,17 @@ def is_extract_domain_not_enabled(status: int, body: str) -> bool:
     return is_domain_scoped_extract_restriction(body)
 
 
+def is_no_data_extracted(status: int, body: str) -> bool:
+    """True when Extract recognised the page but none of its fields had a value.
+
+    The API answers that with 422 and the lowercase code `no_data_extracted`
+    instead of 200 with an empty `parsed`. It is a final answer, not charged,
+    and it means the same as this plugin's `empty` result, so the Extract tool
+    reports it as one rather than as a failure.
+    """
+    return status == 422 and error_code(body) == "NO_DATA_EXTRACTED"
+
+
 def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
     """Raise the right error for a non-2xx Zenrows response.
 

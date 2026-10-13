@@ -13,6 +13,7 @@ from utils.errors import (
     ToolParameterValidationError,
     as_bool,
     is_extract_domain_not_enabled,
+    is_no_data_extracted,
     raise_for_zenrows_error,
     redact,
     require_param,
@@ -147,16 +148,23 @@ class ExtractTool(Tool):
                 )
                 fell_back = True
 
-            raise_for_zenrows_error(
-                response.status_code, response.text, action="extracting data"
-            )
+            no_data = is_no_data_extracted(response.status_code, response.text)
+            if not no_data:
+                raise_for_zenrows_error(
+                    response.status_code, response.text, action="extracting data"
+                )
 
-            try:
-                data = response.json()
-            except ValueError:
-                # A structured method that did not return JSON is a failed
-                # extraction, not page content to hand back.
+            if no_data:
+                # Extract knew the page and found nothing on it: the same outcome
+                # as an empty extraction, so report it as `empty`, not an error.
                 data = None
+            else:
+                try:
+                    data = response.json()
+                except ValueError:
+                    # A structured method that did not return JSON is a failed
+                    # extraction, not page content to hand back.
+                    data = None
 
             # `extract=auto` answers with an envelope, {parsed, html}, where
             # `parsed` holds the fields and `html` is the source page kept for
@@ -177,7 +185,14 @@ class ExtractTool(Tool):
                 "url": url,
             }
 
-            if empty:
+            if no_data:
+                yield self.create_text_message(
+                    f"No structured data found at {url} using {method_used}. "
+                    "Extract recognised the page but none of its fields had a value, "
+                    "and the request was not charged. Turn on Render JavaScript if "
+                    "the page builds its content client-side."
+                )
+            elif empty:
                 yield self.create_text_message(
                     f"No structured data found at {url} using {method_used}."
                 )
