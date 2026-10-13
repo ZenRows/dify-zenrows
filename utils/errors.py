@@ -6,9 +6,12 @@ which is the reference implementation for these codes.
 
 The distinctions that matter:
 
-* 402 is two different failures. `AUTH010` on an Extract request means the
-  target domain is not enrolled in the Extract beta — recoverable, the
-  caller retries with `autoparse`. Any other 402 (e.g. `AUTH004`) means the
+* Extract works on any domain Zenrows has prepared. A domain that isn't
+  prepared yet answers 403 `REQS007`, which is recoverable: the caller retries with
+  `autoparse`.
+* 402 is two different failures. A domain-scoped `AUTH010` on an Extract
+  request is the older domain-not-enabled code, also recoverable the same
+  way. Any other 402 (e.g. `AUTH004`) means the
   account is out of credits, which is not recoverable and must not trigger
   a retry: a blind fallback would spend a second billable call on an
   account that has none.
@@ -170,8 +173,9 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
     if status == 403 and code == "REQS007":
         # A 403, but not an auth failure: Extract hasn't prepared this domain.
         raise ZenrowsApiError(
-            "Switch this tool to autoparse — Extract has not been prepared for "
-            f"this domain yet.{tag}",
+            "Switch this tool to autoparse, or get this domain prepared for "
+            "Extract (POST https://api.zenrows.com/v1/extract/prepared-domains): "
+            f"it has not been prepared yet.{tag}",
             status=status,
             code=code,
         )
@@ -189,8 +193,9 @@ def raise_for_zenrows_error(status: int, body: str, *, action: str) -> None:
             # rather than reporting a billing problem for either.
             if is_domain_scoped_extract_restriction(body):
                 raise ZenrowsApiError(
-                    "Switch this tool to autoparse, or ask Zenrows support to "
-                    f"enable Extract for this domain.{tag}",
+                    "Switch this tool to autoparse, or get this domain prepared "
+                    "for Extract (POST https://api.zenrows.com/v1/extract/prepared-domains)."
+                    f"{tag}",
                     status=status,
                     code=code,
                 )
