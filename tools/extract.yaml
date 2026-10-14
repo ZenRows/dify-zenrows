@@ -9,8 +9,9 @@ description:
   llm: |
     Extracts structured JSON from a web page, rather than returning the page content.
     Choose a method:
-      - "auto" (default): site-tailored extraction. Best quality where supported. If the
-        domain is not enabled for it, this automatically falls back to autoparse.
+      - "auto" (default): site-tailored Extract. Best quality; works on any domain
+        Zenrows has prepared. On a domain not prepared yet, this automatically falls
+        back to autoparse.
         Noticeably slower than autoparse: measured 14-31s across four sites
         (median ~22s) against autoparse's ~2s on the same page. Prefer autoparse
         when latency matters more than field coverage.
@@ -38,7 +39,7 @@ parameters:
     label:
       en_US: Extraction method
     human_description:
-      en_US: How to extract. Auto is site-tailored and falls back to Autoparse when a domain is not supported, but is several times slower than Autoparse.
+      en_US: How to extract. Auto is site-tailored Extract and falls back to Autoparse on a domain not prepared yet, but is several times slower than Autoparse.
     llm_description: >
       Which extraction method to use. "auto" for site-tailored extraction with automatic
       fallback (highest field coverage, but several times slower), "autoparse" for fast
@@ -125,7 +126,7 @@ output_schema:
       description: The extraction method that produced the result — may differ from the one requested if auto fell back.
     fell_back_to_autoparse:
       type: boolean
-      description: True when auto extraction was unavailable for this domain and autoparse was used instead.
+      description: True when the domain was not prepared for Extract yet and autoparse was used instead.
     empty:
       type: boolean
       description: True when the extraction succeeded but found no data.

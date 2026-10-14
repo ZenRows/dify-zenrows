@@ -508,6 +508,59 @@ def test_batch_create_adaptive_stealth_default() -> None:
     check("batch stealth on + premium_proxy is a conflict", conflict, True)
 
 
+# --- 422 no_data_extracted ----------------------------------------------
+# Extract answers a page it knows but finds nothing on with 422
+# `no_data_extracted` rather than 200 and an empty `parsed`. That went through
+# the generic "HTTP 422" error path, so workflows branching on `empty` broke.
+
+class _NoDataResp:
+    status_code = 422
+    text = json.dumps({"code": "no_data_extracted", "title": "No data", "status": 422})
+    content = text.encode()
+
+    def json(self) -> dict:
+        return json.loads(self.text)
+
+
+def _run_extract(response: object) -> tuple[list, list]:
+    import types
+
+    import tools.extract as mod
+
+    calls: list = []
+    json_messages: list = []
+
+    def fake_fetch_raw(api_key, url, p, *, action):
+        calls.append(dict(p))
+        return response
+
+    original = mod.fetch_raw
+    mod.fetch_raw = fake_fetch_raw
+    try:
+        tool = mod.ExtractTool.__new__(mod.ExtractTool)
+        tool.runtime = types.SimpleNamespace(credentials={"api_key": "k"})
+        tool.create_text_message = lambda *a, **k: None
+        tool.create_json_message = lambda payload, *a, **k: json_messages.append(payload)
+        list(tool._invoke({"url": "https://example.com/p/1", "method": "auto"}))
+    finally:
+        mod.fetch_raw = original
+    return calls, json_messages
+
+
+def test_no_data_extracted_is_empty_not_an_error() -> None:
+    from utils.errors import is_no_data_extracted
+
+    body = _NoDataResp.text
+    check("422 no_data_extracted is recognised", is_no_data_extracted(422, body), True)
+    check("other 422s are not", is_no_data_extracted(422, envelope("RESP001", "x", 422)), False)
+    check("the code on another status is not", is_no_data_extracted(400, body), False)
+
+    calls, messages = _run_extract(_NoDataResp())
+    check("no_data_extracted asks once", len(calls), 1)
+    check("no_data_extracted does not fall back", messages and messages[0]["fell_back_to_autoparse"], False)
+    check("no_data_extracted is reported as empty", messages and messages[0]["empty"], True)
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for test in tests:
