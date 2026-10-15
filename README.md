@@ -59,8 +59,10 @@ Fixed:
   stealth.
 - **Extract** falls back to autoparse on a domain not prepared for Extract yet,
   instead of reporting that your API key was rejected.
-- **Extract** reports a page with no extractable data as an empty result
-  (`empty: true`), not as an error.
+
+Known issue: the named output variables of **Fetch** (such as `content`) and
+**Extract** (such as `data`) are empty when a later workflow step reads them.
+Use the tool's `text` or `json` output instead.
 
 ### Development
 
