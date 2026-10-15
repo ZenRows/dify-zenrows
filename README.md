@@ -45,6 +45,23 @@ Add a Zenrows node to a workflow and pass it a URL. The tool returns the page
 content, which you can feed into an LLM node, a knowledge base, or any
 downstream step.
 
+### Changes in 0.2.0
+
+**Behavior change: Batch Create now uses Adaptive stealth by default.** Like
+Fetch and Extract, Batch Create lets Zenrows escalate each URL to JavaScript
+rendering or premium proxies when its site needs them. Protected sites that
+failed on 0.1.0 now succeed, but escalated URLs cost more credits. To keep the
+0.1.0 behavior, turn **Adaptive stealth** off on the Batch Create node.
+
+Fixed:
+
+- **Fetch** with a proxy country no longer fails with `REQS004` under Adaptive
+  stealth.
+- **Extract** falls back to autoparse on a domain not prepared for Extract yet,
+  instead of reporting that your API key was rejected.
+- **Extract** reports a page with no extractable data as an empty result
+  (`empty: true`), not as an error.
+
 ### Development
 
 Working on the plugin itself, or reviewing it? See
