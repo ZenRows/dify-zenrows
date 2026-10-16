@@ -202,6 +202,11 @@ class ExtractTool(Tool):
                 )
 
             yield self.create_json_message(result)
+            # output_schema alone only populates Dify's variable picker. A
+            # downstream node reads None unless the tool also emits each
+            # field as a variable message.
+            for key, value in result.items():
+                yield self.create_variable_message(key, value)
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:
