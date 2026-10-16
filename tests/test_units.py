@@ -432,6 +432,7 @@ def _run_fetch(params: dict) -> dict:
         tool.create_text_message = lambda *a, **k: None
         tool.create_json_message = lambda *a, **k: None
         tool.create_blob_message = lambda *a, **k: None
+        tool.create_variable_message = lambda *a, **k: None
         list(tool._invoke({"url": "https://example.com", **params}))
     finally:
         mod.fetch = original
@@ -541,6 +542,7 @@ def _run_extract(response: object) -> tuple[list, list]:
         tool.runtime = types.SimpleNamespace(credentials={"api_key": "k"})
         tool.create_text_message = lambda *a, **k: None
         tool.create_json_message = lambda payload, *a, **k: json_messages.append(payload)
+        tool.create_variable_message = lambda *a, **k: None
         list(tool._invoke({"url": "https://example.com/p/1", "method": "auto"}))
     finally:
         mod.fetch_raw = original
@@ -559,6 +561,80 @@ def test_no_data_extracted_is_empty_not_an_error() -> None:
     check("no_data_extracted asks once", len(calls), 1)
     check("no_data_extracted does not fall back", messages and messages[0]["fell_back_to_autoparse"], False)
     check("no_data_extracted is reported as empty", messages and messages[0]["empty"], True)
+
+
+# --- declared outputs reach the workflow -----------------------------------
+# A Dify workflow receives None for any output_schema field the tool does not
+# also emit with create_variable_message(). Fetch and Extract shipped 0.1.0 and
+# 0.2.0 that way: every named output was None, only `text` and `json` worked.
+
+def _declared_outputs(tool: str) -> set:
+    import yaml
+
+    path = Path(__file__).resolve().parents[1] / "tools" / f"{tool}.yaml"
+    return set(yaml.safe_load(path.read_text())["output_schema"]["properties"])
+
+
+def _invoke(mod_name: str, cls_name: str, fake_name: str, response: object, params: dict) -> tuple:
+    import importlib
+    import types
+
+    mod = importlib.import_module(mod_name)
+    json_messages: list = []
+    variables: dict = {}
+
+    original = getattr(mod, fake_name)
+    setattr(mod, fake_name, lambda api_key, url, p, *, action: response)
+    try:
+        tool = getattr(mod, cls_name).__new__(getattr(mod, cls_name))
+        tool.runtime = types.SimpleNamespace(credentials={"api_key": "k"})
+        tool.create_text_message = lambda *a, **k: None
+        tool.create_blob_message = lambda *a, **k: None
+        tool.create_json_message = lambda payload, *a, **k: json_messages.append(payload)
+        tool.create_variable_message = lambda name, value: variables.__setitem__(name, value)
+        list(tool._invoke(params))
+    finally:
+        setattr(mod, fake_name, original)
+    return json_messages, variables
+
+
+class _PngResp(_Resp):
+    content = b"\x89PNG\r\n\x1a\n" + b"0" * 16
+    headers = {"Content-Type": "image/png"}
+
+
+class _JsonResp(_Resp):
+    text = json.dumps({"title": "Example"})
+
+    def json(self) -> dict:
+        return {"title": "Example"}
+
+
+def test_fetch_emits_every_declared_output() -> None:
+    declared = _declared_outputs("fetch")
+    url = {"url": "https://example.com"}
+
+    messages, variables = _invoke("tools.fetch", "FetchTool", "fetch", _Resp(), url)
+    check("fetch text: every declared output is a variable", set(variables), declared)
+    check("fetch text: variables match the json message", variables, messages[0])
+
+    for label, extra, resp in (
+        ("screenshot", {"js_render": True, "screenshot": True, "adaptive_stealth": False}, _PngResp()),
+        ("pdf", {"response_type": "pdf", "adaptive_stealth": False}, _Resp()),
+    ):
+        messages, variables = _invoke("tools.fetch", "FetchTool", "fetch", resp, {**url, **extra})
+        check(f"fetch {label}: variables match the json message", variables, messages[0])
+
+
+def test_extract_emits_every_declared_output() -> None:
+    declared = _declared_outputs("extract")
+    for label, resp in (("data", _JsonResp()), ("no_data_extracted", _NoDataResp())):
+        messages, variables = _invoke(
+            "tools.extract", "ExtractTool", "fetch_raw", resp,
+            {"url": "https://example.com/p/1", "method": "autoparse"},
+        )
+        check(f"extract {label}: every declared output is a variable", set(variables), declared)
+        check(f"extract {label}: variables match the json message", variables, messages[0])
 
 
 def main() -> int:

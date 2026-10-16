@@ -29,7 +29,7 @@ from utils.errors import ToolInvokeError, raise_for_zenrows_error, redact
 
 SUBSCRIPTION_URL = "https://api.zenrows.com/v1/subscriptions/self/details"
 
-PLUGIN_VERSION = "0.2.0"
+PLUGIN_VERSION = "0.2.1"
 USER_AGENT = f"zenrows-dify-plugin/{PLUGIN_VERSION}"
 
 # Dify caps a tool invocation at 120s (MAX_REQUEST_TIMEOUT in main.py), so no
