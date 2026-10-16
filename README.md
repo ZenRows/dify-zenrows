@@ -1,7 +1,7 @@
 ## Zenrows
 
 **Author:** zenrows
-**Version:** 0.2.0
+**Version:** 0.2.1
 **Type:** tool
 **Repository:** https://github.com/ZenRows/dify-zenrows
 **Contact:** support@zenrows.com
@@ -45,6 +45,14 @@ Add a Zenrows node to a workflow and pass it a URL. The tool returns the page
 content, which you can feed into an LLM node, a knowledge base, or any
 downstream step.
 
+### Changes in 0.2.1
+
+Fixed: the named output variables of **Fetch** (`content`, `url`,
+`status_code`) and **Extract** (`data`, `method_used`,
+`fell_back_to_autoparse`, `empty`, `url`) now reach later workflow steps. In
+0.2.0 they were empty, and only the `text` and `json` outputs carried the
+result.
+
 ### Changes in 0.2.0
 
 **Behavior change: Batch Create now uses Adaptive stealth by default.** Like
@@ -59,10 +67,6 @@ Fixed:
   stealth.
 - **Extract** falls back to autoparse on a domain not prepared for Extract yet,
   instead of reporting that your API key was rejected.
-
-Known issue: the named output variables of **Fetch** (such as `content`) and
-**Extract** (such as `data`) are empty when a later workflow step reads them.
-Use the tool's `text` or `json` output instead.
 
 ### Development
 

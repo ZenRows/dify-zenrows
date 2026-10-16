@@ -179,28 +179,28 @@ class FetchTool(Tool):
         try:
             response = fetch(api_key, url, params, action="fetching the page")
 
+            result = {"url": url, "status_code": response.status_code}
             if screenshot:
                 mime = _image_mime(response.content, response.headers.get("Content-Type"))
                 yield self.create_blob_message(
                     blob=response.content,
                     meta={"mime_type": mime, "filename": "screenshot." + mime.split("/")[1]},
                 )
-                yield self.create_json_message({"url": url, "status_code": response.status_code})
-                return
-
-            if response_type == "pdf":
+            elif response_type == "pdf":
                 yield self.create_blob_message(
                     blob=response.content,
                     meta={"mime_type": "application/pdf", "filename": "page.pdf"},
                 )
-                yield self.create_json_message({"url": url, "status_code": response.status_code})
-                return
+            else:
+                result = {"content": response.text, **result}
+                yield self.create_text_message(result["content"])
 
-            content = response.text
-            yield self.create_text_message(content)
-            yield self.create_json_message(
-                {"content": content, "url": url, "status_code": response.status_code}
-            )
+            yield self.create_json_message(result)
+            # output_schema alone only populates Dify's variable picker. A
+            # downstream node reads None unless the tool also emits each
+            # field as a variable message.
+            for key, value in result.items():
+                yield self.create_variable_message(key, value)
         except PASSTHROUGH_ERRORS:
             raise
         except Exception as exc:
