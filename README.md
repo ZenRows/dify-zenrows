@@ -28,7 +28,7 @@ the page. Use **Batch** when you have more URLs than one request should carry.
 
 ### Setup
 
-1. Get a Zenrows API key from https://app.zenrows.com — the dashboard shows it
+1. Get a Zenrows API key from https://app.zenrows.com?utm_source=dify&utm_medium=readme&utm_campaign=dify-zenrows — the dashboard shows it
    under your account.
 2. In Dify, go to **Integrations → Tool Plugin**, install Zenrows, and paste the
    key when prompted.
